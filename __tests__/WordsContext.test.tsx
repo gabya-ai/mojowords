@@ -1,0 +1,107 @@
+import { renderHook, act } from '@testing-library/react';
+import { WordsProvider, useWords, Word } from '../context/WordsContext';
+
+describe('WordsContext', () => {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <WordsProvider>{children}</WordsProvider>
+    );
+
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it('provides default values', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        expect(result.current.words).toEqual([]);
+        expect(result.current.isAuthenticated).toBe(false);
+        expect(result.current.userProfile.name).toBe('Explorer');
+    });
+
+    it('can login and logout', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        act(() => {
+            result.current.login();
+        });
+
+        expect(result.current.isAuthenticated).toBe(true);
+        expect(result.current.userProfile.email).toBe('explorer@example.com');
+
+        act(() => {
+            result.current.logout();
+        });
+
+        expect(result.current.isAuthenticated).toBe(false);
+        expect(result.current.userProfile.email).toBe('');
+    });
+
+    it('can add and delete words', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        const newWord: Word = {
+            id: '1',
+            word: 'Test',
+            definition: 'A test word',
+            sentence: 'This is a test.',
+            imageUrl: 'http://example.com/img.jpg',
+            timestamp: Date.now(),
+            gradeLevel: 1,
+            difficulty: 'EASY'
+        };
+
+        act(() => {
+            result.current.addWord(newWord);
+        });
+
+        expect(result.current.words).toHaveLength(1);
+        expect(result.current.words[0]).toEqual(newWord);
+
+        act(() => {
+            result.current.deleteWord('1');
+        });
+
+        expect(result.current.words).toHaveLength(0);
+    });
+
+    it('handles duplicate words by moving to top (overwriting)', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        const word1: Word = {
+            id: '1',
+            word: 'Apple',
+            definition: 'Fruit',
+            sentence: 'Eat apple',
+            imageUrl: '',
+            timestamp: 1000,
+            gradeLevel: 1,
+            difficulty: 'EASY'
+        };
+
+        const word2: Word = {
+            id: '2',
+            word: 'Apple', // Same word
+            definition: 'Red Fruit',
+            sentence: 'Red apple',
+            imageUrl: '',
+            timestamp: 2000,
+            gradeLevel: 1,
+            difficulty: 'EASY'
+        };
+
+        act(() => {
+            result.current.addWord(word1);
+        });
+
+        expect(result.current.words).toHaveLength(1);
+        expect(result.current.words[0].id).toBe('1');
+
+        act(() => {
+            result.current.addWord(word2);
+        });
+
+        expect(result.current.words).toHaveLength(1); // Should still be 1
+        expect(result.current.words[0].id).toBe('2'); // Should be the new one
+        expect(result.current.words[0].definition).toBe('Red Fruit');
+    });
+});
