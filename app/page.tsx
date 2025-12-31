@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import WordInput from '@/components/WordInput';
 import WordCard from '@/components/WordCard';
 import { useWords, Word } from '@/context/WordsContext';
@@ -65,18 +66,21 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Daily Streak Widget */}
-        <div className="bg-white/80 rounded-xl px-3 py-2 shadow-sm border border-[#F1F3C4] flex items-center gap-3 scale-90 origin-right">
-          <div className="text-center">
-            <p className="text-[10px] font-bold text-[#8A8A8A] uppercase leading-tight">Streak</p>
-            <p className="text-lg font-extrabold text-[#F4B9B2] leading-tight">{userProfile.streak} Days</p>
-          </div>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center border-2 text-xs ${i <= userProfile.streak ? 'bg-[#FDF4C4] border-[#F1F3C4]' : 'bg-[#FDFBF7] border-gray-100'}`}>
-                {i <= userProfile.streak ? '🌻' : ''}
-              </div>
-            ))}
+        <div className="flex items-center gap-3">
+          {/* Daily Streak Widget */}
+          <div className="bg-white/80 rounded-xl px-3 py-2 shadow-sm border border-[#F1F3C4] flex items-center gap-3 scale-90 origin-right">
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-[#8A8A8A] uppercase leading-tight">Streak</p>
+              <p className="text-lg font-extrabold text-[#F4B9B2] leading-tight">{userProfile.streak} Days</p>
+            </div>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center border-2 text-xs ${i <= userProfile.streak ? 'bg-[#FDF4C4] border-[#F1F3C4]' : 'bg-[#FDFBF7] border-gray-100'}`}>
+                  {i <= userProfile.streak ? '🌻' : ''}
+                </div>
+
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -105,6 +109,20 @@ export default function Home() {
           <p className="text-[#8A8A8A] text-sm mt-1">Type a word above to plant a new seed of knowledge.</p>
         </div>
       )}
+
+
+      {/* Word Card Display */}
+      {currentWord && (
+        <div className="max-w-2xl mx-auto animate-fade-in relative z-10">
+          <WordCard
+            word={currentWord}
+            onDelete={handleDelete}
+            onToggleStar={handleToggleStar}
+          />
+        </div>
+      )}
+
+
     </div>
   );
 }

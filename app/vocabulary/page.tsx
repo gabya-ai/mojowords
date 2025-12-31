@@ -49,6 +49,7 @@ export default function VocabularyPage() {
                                 <th className="px-5 py-3 text-left text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider w-12">Mark</th>
                                 <th className="px-5 py-3 text-left text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider">Word</th>
                                 <th className="px-5 py-3 text-left text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider">Meaning</th>
+                                <th className="px-5 py-3 text-center text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider">Views</th>
                                 <th className="px-5 py-3 text-left text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider w-1/3">Garden Notes</th>
                                 <th className="px-5 py-3 text-center text-[10px] font-extrabold text-[#8A8A8A] uppercase tracking-wider w-16">Action</th>
                             </tr>
@@ -79,6 +80,9 @@ export default function VocabularyPage() {
                                         </td>
                                         <td className="px-5 py-3">
                                             <div className="text-xs text-[#4A6D51] font-medium leading-relaxed max-w-sm">{word.definition}</div>
+                                        </td>
+                                        <td className="px-5 py-3 text-center">
+                                            <span className="text-xs font-bold text-[#D4A373] bg-[#FFE5B4]/50 px-2 py-1 rounded-full">{word.views || 0}</span>
                                         </td>
                                         <td className="px-5 py-3">
                                             <input

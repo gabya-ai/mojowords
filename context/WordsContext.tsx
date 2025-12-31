@@ -13,6 +13,9 @@ export interface Word {
     timestamp: number;
     isStarred?: boolean;
     comment?: string;
+    mastery?: number; // 0 = New, 100 = Mastered
+    lastReviewed?: number;
+    views?: number; // Exposure count
 }
 
 interface WordsContextType {
@@ -21,6 +24,8 @@ interface WordsContextType {
     deleteWord: (id: string) => void;
     toggleStar: (id: string) => void;
     updateComment: (id: string, comment: string) => void;
+    markWordReviewed: (id: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD') => void;
+    markWordViewed: (id: string) => void;
     userProfile: {
         id: string; // Add ID for tracking
         name: string;
@@ -35,7 +40,7 @@ interface WordsContextType {
     updateUserName: (name: string) => void;
     updateUserProfile: (data: Partial<WordsContextType['userProfile']>) => void;
     profiles: WordsContextType['userProfile'][]; // List of all profiles
-    addProfile: (name: string) => void;
+    addProfile: (name: string) => boolean;
     switchProfile: (id: string) => void;
     deleteProfile: (id: string) => void;
     isAuthenticated: boolean;
@@ -57,6 +62,34 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     });
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+    const checkStreak = () => {
+        setUserProfile(prev => {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const lastVisit = prev.lastVisit;
+
+            // If visiting for the first time or same day, just update last visit
+            if (!lastVisit) {
+                return { ...prev, streak: 1, lastVisit: today };
+            }
+
+            if (lastVisit === today) {
+                return prev;
+            }
+
+            // Check if last visit was yesterday
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            if (lastVisit === yesterdayStr) {
+                return { ...prev, streak: prev.streak + 1, lastVisit: today };
+            } else {
+                // Missed a day (or more), reset streak
+                return { ...prev, streak: 1, lastVisit: today };
+            }
+        });
+    };
+
     // Load from localStorage on mount
     useEffect(() => {
         const savedWords = localStorage.getItem('vocal-tool-words');
@@ -66,7 +99,8 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
         if (savedAuth) {
             try {
-                setIsAuthenticated(JSON.parse(savedAuth));
+                const auth = JSON.parse(savedAuth);
+                setTimeout(() => setIsAuthenticated(auth), 0);
             } catch (e) {
                 console.error('Failed to parse auth', e);
             }
@@ -109,23 +143,26 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('vocal-tool-profile', JSON.stringify(userProfile));
 
         // Also update this profile in the profiles list
-        setProfiles(prev => {
-            // Deduplicate logic: check by ID
-            const existingIndex = prev.findIndex(p => p.id === userProfile.id);
+        // Use timeout to avoid sync setState in effect
+        setTimeout(() => {
+            setProfiles(prev => {
+                // Deduplicate logic: check by ID
+                const existingIndex = prev.findIndex(p => p.id === userProfile.id);
 
-            if (existingIndex >= 0) {
-                // Only update if actually different to avoid infinite loops if we were careful
-                // But simplified: just replace
-                const newProfiles = [...prev];
-                newProfiles[existingIndex] = userProfile;
-                return newProfiles;
-            } else {
-                // If not in list, add it.
-                // Guard against duplicate adding (React 18 Strict Mode double-invoke protection)
-                if (prev.some(p => p.id === userProfile.id)) return prev;
-                return [...prev, userProfile];
-            }
-        });
+                if (existingIndex >= 0) {
+                    // Only update if actually different to avoid infinite loops if we were careful
+                    // But simplified: just replace
+                    const newProfiles = [...prev];
+                    newProfiles[existingIndex] = userProfile;
+                    return newProfiles;
+                } else {
+                    // If not in list, add it.
+                    // Guard against duplicate adding (React 18 Strict Mode double-invoke protection)
+                    if (prev.some(p => p.id === userProfile.id)) return prev;
+                    return [...prev, userProfile];
+                }
+            });
+        }, 0);
     }, [userProfile]);
 
     useEffect(() => {
@@ -136,34 +173,6 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('vocal-tool-auth', JSON.stringify(isAuthenticated));
     }, [isAuthenticated]);
 
-    const checkStreak = () => {
-        setUserProfile(prev => {
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-            const lastVisit = prev.lastVisit;
-
-            // If visiting for the first time or same day, just update last visit
-            if (!lastVisit) {
-                return { ...prev, streak: 1, lastVisit: today };
-            }
-
-            if (lastVisit === today) {
-                return prev;
-            }
-
-            // Check if last visit was yesterday
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-            if (lastVisit === yesterdayStr) {
-                return { ...prev, streak: prev.streak + 1, lastVisit: today };
-            } else {
-                // Missed a day (or more), reset streak
-                return { ...prev, streak: 1, lastVisit: today };
-            }
-        });
-    };
-
     const updateUserName = (name: string) => {
         setUserProfile(prev => ({ ...prev, name }));
     };
@@ -173,16 +182,20 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     };
 
     const addProfile = (name: string) => {
+        // Check for duplicates (case-insensitive)
+        if (profiles.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
+            return false;
+        }
+
         const newProfile: WordsContextType['userProfile'] = {
             id: Date.now().toString(),
-            name,
+            name: name.trim(),
             streak: 0,
             lastVisit: null,
-            hasCompletedOnboarding: false
+            hasCompletedOnboarding: true // New profiles added by parent don't need survey
         };
         setProfiles(prev => [...prev, newProfile]);
-        // Switch to new profile? Optional. Let's not auto-switch for now, just add.
-        // Actually, for "Add Kid" flow, usually you want to set it up.
+        return true;
     };
 
     const switchProfile = (id: string) => {
@@ -244,6 +257,50 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         ));
     };
 
+    const markWordViewed = (id: string) => {
+        setWords(prev => prev.map(w =>
+            w.id === id ? { ...w, views: (w.views || 0) + 1 } : w
+        ));
+    };
+
+    const markWordReviewed = (id: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD') => {
+        setWords(prev => prev.map(w => {
+            if (w.id !== id) return w;
+
+            // Simple Spaced Repetition Logic (Placeholder for SM-2)
+            // EASY -> Increase mastery significantly
+            // MEDIUM -> Increase mastery slightly
+            // HARD -> Reset or decrease mastery
+
+            let newMastery = w.mastery || 0;
+
+            switch (difficulty) {
+                case 'EASY':
+                    newMastery = Math.min(100, newMastery + 20);
+                    break;
+                case 'MEDIUM':
+                    newMastery = Math.min(100, newMastery + 10);
+                    break;
+                case 'HARD':
+                    newMastery = Math.max(0, newMastery - 20); // Penalty
+                    break;
+            }
+
+            return {
+                ...w,
+                mastery: newMastery,
+                lastReviewed: Date.now(),
+                // Views are handled by implicit view or explicit review?
+                // If we also count specific review action as a view (redundant if viewed on load?):
+                // Let's decide: Viewing calls viewed. Grading calls reviewed.
+                // We keep views increment here just in case? Or rely on viewed?
+                // If we call viewed on load, then this increment is double counting if coincident?
+                // Actually, the prompt says "When a word is shown/reviewed... vocabulary table state".
+                // Safest to have viewed be separate.
+            };
+        }));
+    };
+
     const login = () => {
         setIsAuthenticated(true);
         // Only set default profile if it doesn't have an email (new user concept)
@@ -257,7 +314,7 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <WordsContext.Provider value={{ words, addWord, deleteWord, toggleStar, updateComment, userProfile, updateUserName, updateUserProfile, profiles, addProfile, switchProfile, deleteProfile, isAuthenticated, login, logout }}>
+        <WordsContext.Provider value={{ words, addWord, deleteWord, toggleStar, updateComment, markWordReviewed, markWordViewed, userProfile, updateUserName, updateUserProfile, profiles, addProfile, switchProfile, deleteProfile, isAuthenticated, login, logout }}>
             {children}
         </WordsContext.Provider>
     );

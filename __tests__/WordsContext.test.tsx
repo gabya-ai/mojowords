@@ -104,4 +104,52 @@ describe('WordsContext', () => {
         expect(result.current.words[0].id).toBe('2'); // Should be the new one
         expect(result.current.words[0].definition).toBe('Red Fruit');
     });
+    it('adds new profile with onboarded status to prevent survey loop', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        act(() => {
+            result.current.addProfile('New Kid');
+        });
+
+        const newProfile = result.current.profiles.find(p => p.name === 'New Kid');
+        expect(newProfile).toBeDefined();
+        // This validates the fix: new profiles should treat onboarding as done
+        // if they are created under an existing account context (simplified for now as always true for added kids)
+        expect(newProfile?.hasCompletedOnboarding).toBe(true);
+    });
+
+
+    it('updates word mastery on review', () => {
+        const { result } = renderHook(() => useWords(), { wrapper });
+
+        const word: Word = {
+            id: '1',
+            word: 'Test',
+            definition: 'Def',
+            sentence: 'Sen',
+            imageUrl: '',
+            timestamp: Date.now(),
+            gradeLevel: 1,
+            difficulty: 'EASY',
+            mastery: 0
+        };
+
+        act(() => {
+            result.current.addWord(word);
+        });
+
+        act(() => {
+            result.current.markWordReviewed('1', 'EASY');
+        });
+
+        expect(result.current.words[0].mastery).toBe(20);
+        expect(result.current.words[0].lastReviewed).toBeDefined();
+
+        act(() => {
+            result.current.markWordReviewed('1', 'HARD');
+        });
+
+        expect(result.current.words[0].mastery).toBe(0); // Should decrease/reset
+    });
+
 });

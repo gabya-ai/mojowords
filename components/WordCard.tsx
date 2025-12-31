@@ -2,6 +2,7 @@
 
 import { Word } from '@/context/WordsContext';
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface WordCardProps {
     word: Word;
@@ -88,7 +89,7 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
                     <div className="bg-[#F4B9B2]/10 p-4 rounded-xl border-l-4 border-[#F4B9B2]">
                         <span className="text-[#F4B9B2] text-[10px] font-extrabold uppercase tracking-wider block mb-0.5">Example</span>
                         <p className="text-base text-gray-700 italic font-medium">
-                            "{word.sentence}"
+                            &quot;{word.sentence}&quot;
                         </p>
                     </div>
                 </div>
@@ -98,10 +99,11 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
 
                 {/* Image Section - Reduced Height */}
                 <div className="relative h-48 w-full rounded-xl overflow-hidden shadow-inner bg-[#FDFBF7] group border border-white">
-                    <img
+                    <Image
                         src={word.imageUrl}
                         alt={word.word}
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        fill
+                        className="object-cover transition-transform duration-1000 group-hover:scale-105"
                     />
                     <div className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-md">
                         AI Generated

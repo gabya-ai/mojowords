@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import AuthGuard from '../components/AuthGuard';
-import { WordsContext } from '../context/WordsContext';
+import { WordsContext, useWords } from '../context/WordsContext';
 
 // Mock useRouter and usePathname
 const mockPush = jest.fn();
@@ -8,7 +8,16 @@ const mockPathname = jest.fn();
 
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: mockPush }),
+
+
     usePathname: () => mockPathname()
+}));
+
+// Mock useWords hook
+jest.mock('../context/WordsContext', () => ({
+    ...jest.requireActual('../context/WordsContext'),
+    useWords: jest.fn(),
+    WordsContext: jest.requireActual('../context/WordsContext').WordsContext // check this
 }));
 
 // Mock Context Provider for testing
@@ -22,31 +31,40 @@ const MockProvider = ({ children, isAuthenticated }: { children: React.ReactNode
 describe('AuthGuard', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Reset useWords mock for each test
+        (useWords as jest.Mock).mockReturnValue({
+            isAuthenticated: true,
+            userProfile: { hasCompletedOnboarding: true } // Default to authenticated and onboarded
+        });
     });
 
-    it('renders children if authenticated', () => {
+    it('renders children if authenticated', async () => {
         mockPathname.mockReturnValue('/');
+        (useWords as jest.Mock).mockReturnValue({
+            isAuthenticated: true,
+            userProfile: { hasCompletedOnboarding: true }
+        });
 
         render(
-            <MockProvider isAuthenticated={true}>
-                <AuthGuard>
-                    <div data-testid="protected-content">Protected</div>
-                </AuthGuard>
-            </MockProvider>
+            <AuthGuard>
+                <div data-testid="protected-content">Protected</div>
+            </AuthGuard>
         );
 
-        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+        expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
     });
 
     it('redirects to /login if not authenticated', async () => {
         mockPathname.mockReturnValue('/');
+        (useWords as jest.Mock).mockReturnValue({
+            isAuthenticated: false,
+            userProfile: { hasCompletedOnboarding: true }
+        });
 
         render(
-            <MockProvider isAuthenticated={false}>
-                <AuthGuard>
-                    <div>Protected</div>
-                </AuthGuard>
-            </MockProvider>
+            <AuthGuard>
+                <div>Protected</div>
+            </AuthGuard>
         );
 
         await waitFor(() => {
@@ -54,19 +72,21 @@ describe('AuthGuard', () => {
         });
     });
 
-    it('allows access to /login page even if not authenticated', () => {
+    it('allows access to /login page even if not authenticated', async () => {
         // pathname is /login
         mockPathname.mockReturnValue('/login');
+        (useWords as jest.Mock).mockReturnValue({
+            isAuthenticated: false,
+            userProfile: { hasCompletedOnboarding: true }
+        });
 
         render(
-            <MockProvider isAuthenticated={false}>
-                <AuthGuard>
-                    <div data-testid="login-content">Login Page</div>
-                </AuthGuard>
-            </MockProvider>
+            <AuthGuard>
+                <div data-testid="login-content">Login Page</div>
+            </AuthGuard>
         );
 
-        expect(screen.getByTestId('login-content')).toBeInTheDocument();
+        expect(await screen.findByTestId('login-content')).toBeInTheDocument();
         expect(mockPush).not.toHaveBeenCalled();
     });
 });

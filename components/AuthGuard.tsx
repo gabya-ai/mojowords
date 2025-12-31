@@ -1,44 +1,43 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated } = useWords();
+    const { isAuthenticated, userProfile } = useWords();
     const router = useRouter();
     const pathname = usePathname();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        // Use timeout to push to next tick, avoiding sync setState warning
+        const timer = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {
         if (!mounted) return;
 
-        // Allow login page access without auth
-        if (pathname === '/login') return;
-
-        // Redirect if not authenticated
-        if (!isAuthenticated) {
+        if (!isAuthenticated && pathname !== '/login') {
             router.push('/login');
+        } else if (isAuthenticated && !userProfile.hasCompletedOnboarding && pathname !== '/onboarding') {
+            router.push('/onboarding');
         }
-    }, [isAuthenticated, pathname, router, mounted]);
+    }, [isAuthenticated, userProfile.hasCompletedOnboarding, pathname, router, mounted]);
 
     // Don't render anything until client-side hydration is complete
     if (!mounted) return null;
 
-    // If on login page, just render
-    if (pathname === '/login') {
-        return <>{children}</>;
+    // If not authenticated and not on login page, render nothing (redirecting)
+    if (!isAuthenticated && pathname !== '/login') {
+        return null;
     }
 
-    // If authenticated, render protected content
-    if (isAuthenticated) {
-        return <>{children}</>;
+    // If authenticated but onboarding incomplete and not on onboarding page, render nothing (redirecting)
+    if (isAuthenticated && !userProfile.hasCompletedOnboarding && pathname !== '/onboarding') {
+        return null;
     }
 
-    // Otherwise render nothing while redirecting
-    return null;
+    return <>{children}</>;
 }

@@ -5,7 +5,7 @@ import { WordsContext } from '../context/WordsContext';
 // Mock Provider
 const mockUpdateUserProfile = jest.fn();
 const MockProvider = ({ children }: { children: React.ReactNode }) => (
-    // @ts-ignore - Partial mock
+    // @ts-expect-error - Mocking useWords partial return
     <WordsContext.Provider value={{
         userProfile: { name: 'Parent', streak: 0, lastVisit: null },
         updateUserProfile: mockUpdateUserProfile

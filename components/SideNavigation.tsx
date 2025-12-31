@@ -8,6 +8,7 @@ export default function SideNavigation() {
 
     const navItems = [
         { name: 'Home', href: '/', icon: '⭐' },     // Using Star for Home per ref
+        { name: 'Flashcard', href: '/review', icon: '🧠' }, // Renamed from Review
         { name: 'Vocabulary', href: '/vocabulary', icon: '📖' }, // Re-mapped for clarity
         { name: 'Practice', href: '/practice', icon: '🌱' },
         { name: 'Awards', href: '/awards', icon: '🏆' },

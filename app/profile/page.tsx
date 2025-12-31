@@ -12,6 +12,8 @@ export default function ProfilePage() {
     // Modal State
     const [showAddModal, setShowAddModal] = useState(false);
     const [newKidName, setNewKidName] = useState('');
+    // Remove Kid Modal State
+    const [deleteProfileId, setDeleteProfileId] = useState<string | null>(null);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -123,22 +125,16 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    {userProfile.id === profile.id ? (
-                                        <span className="text-xl">✅</span>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (confirm(`Are you sure you want to remove ${profile.name}?`)) {
-                                                    deleteProfile(profile.id);
-                                                }
-                                            }}
-                                            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                                            title="Remove Profile"
-                                        >
-                                            🗑️
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteProfileId(profile.id);
+                                        }}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                        title="Remove Profile"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -151,7 +147,7 @@ export default function ProfilePage() {
                         <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6">
                             <div className="text-center space-y-2">
                                 <span className="text-4xl">👋</span>
-                                <h3 className="text-2xl font-extrabold text-[#4A6D51]">What's the new gardener's name?</h3>
+                                <h3 className="text-2xl font-extrabold text-[#4A6D51]">What&apos;s the new gardener&apos;s name?</h3>
                             </div>
 
                             <input
@@ -176,15 +172,54 @@ export default function ProfilePage() {
                                 <button
                                     onClick={() => {
                                         if (newKidName.trim()) {
-                                            addProfile(newKidName.trim());
-                                            setShowAddModal(false);
-                                            setNewKidName('');
+                                            const success = addProfile(newKidName.trim());
+                                            if (success) {
+                                                setShowAddModal(false);
+                                                setNewKidName('');
+                                            } else {
+                                                alert('A gardener with this name already exists! Please choose a different name.');
+                                            }
                                         }
                                     }}
                                     disabled={!newKidName.trim()}
                                     className="flex-1 bg-[#4A6D51] text-white font-bold py-3 rounded-xl hover:bg-[#3A5D41] disabled:opacity-50 transition-colors"
                                 >
                                     OK
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Remove Kid Confirmation Modal */}
+                {deleteProfileId && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6">
+                            <div className="text-center space-y-2">
+                                <span className="text-4xl">🗑️</span>
+                                <h3 className="text-2xl font-extrabold text-[#4A6D51]">Remove this profile?</h3>
+                                <p className="text-[#8A8A8A] font-medium">
+                                    Are you sure you want to remove <span className="text-[#4A6D51] font-bold">&quot;{profiles.find(p => p.id === deleteProfileId)?.name}&quot;</span>? This cannot be undone.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setDeleteProfileId(null)}
+                                    className="flex-1 py-3 font-bold text-[#8A8A8A] hover:bg-[#FDFBF7] rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (deleteProfileId) {
+                                            deleteProfile(deleteProfileId);
+                                            setDeleteProfileId(null);
+                                        }
+                                    }}
+                                    className="flex-1 bg-[#F4B9B2] text-white font-bold py-3 rounded-xl hover:bg-[#E09090] transition-colors"
+                                >
+                                    Yes, Remove
                                 </button>
                             </div>
                         </div>

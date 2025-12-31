@@ -93,6 +93,7 @@ export default function OnboardingSurvey() {
                             <button onClick={handleBack} className="flex-1 py-3 font-bold text-[#8A8A8A]">Back</button>
                             <button onClick={handleNext} className="flex-1 bg-[#4A6D51] text-white font-bold py-3 rounded-xl hover:bg-[#3A5D41]">Next</button>
                         </div>
+                        <button onClick={handleSubmit} className="w-full py-2 font-bold text-[#F4B9B2] text-sm mt-2 hover:text-[#E09090]">Skip & Finish Later</button>
                     </div>
                 )}
 
@@ -118,6 +119,7 @@ export default function OnboardingSurvey() {
                             ))}
                         </div>
                         <button onClick={handleBack} className="w-full py-2 font-bold text-[#8A8A8A]">Back</button>
+                        <button onClick={handleSubmit} className="w-full py-2 font-bold text-[#F4B9B2] text-sm mt-1 hover:text-[#E09090]">Skip & Finish Later</button>
                     </div>
                 )}
 
@@ -125,7 +127,7 @@ export default function OnboardingSurvey() {
                     <div className="space-y-4 text-center animate-slide-in">
                         <span className="text-4xl">🌎</span>
                         <h2 className="text-2xl font-extrabold text-[#4A6D51]">Where do you live?</h2>
-                        <p className="text-xs text-[#8A8A8A]">This helps us find what you're learning at school!</p>
+                        <p className="text-xs text-[#8A8A8A]">This helps us find what you&apos;re learning at school!</p>
 
                         <select
                             value={formData.state}
@@ -148,6 +150,7 @@ export default function OnboardingSurvey() {
                                 Finish
                             </button>
                         </div>
+                        <button onClick={handleSubmit} className="w-full py-2 font-bold text-[#F4B9B2] text-sm mt-1 hover:text-[#E09090]">Skip & Finish Later</button>
                     </div>
                 )}
 

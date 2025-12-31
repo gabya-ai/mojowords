@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import OnboardingSurvey from '../components/OnboardingSurvey';
-import { WordsContext } from '../context/WordsContext';
+import { WordsContext, useWords } from '../context/WordsContext';
 
 // Mock useRouter
 const mockPush = jest.fn();
@@ -8,18 +8,24 @@ jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: mockPush }),
 }));
 
+// Mock useWords hook
+jest.mock('../context/WordsContext', () => ({
+    ...jest.requireActual('../context/WordsContext'), // Keep actual exports if any
+    useWords: jest.fn(),
+}));
+
 // Mock Data
 const mockUpdateUserProfile = jest.fn();
 
-const MockProvider = ({ children }: { children: React.ReactNode }) => (
-    // @ts-ignore - Partial mock
-    <WordsContext.Provider value={{
+const MockProvider = ({ children }: { children: React.ReactNode }) => {
+    // @ts-expect-error - Mocking useWords partial return
+    (useWords as jest.Mock).mockReturnValue({
         userProfile: { name: 'Explorer', streak: 0, lastVisit: null },
-        updateUserProfile: mockUpdateUserProfile
-    }}>
-        {children}
-    </WordsContext.Provider>
-);
+        updateUserProfile: mockUpdateUserProfile,
+        isAuthenticated: true // Ensure auth is satisfied if needed
+    });
+    return <>{children}</>;
+};
 
 describe('OnboardingSurvey', () => {
     beforeEach(() => {
@@ -33,7 +39,7 @@ describe('OnboardingSurvey', () => {
             </MockProvider>
         );
         expect(screen.getByText(/What should we call you?/i)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/Enter your name/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Who will be learning?/i)).toBeInTheDocument();
     });
 
     it('navigates through steps and submits', () => {
@@ -44,7 +50,7 @@ describe('OnboardingSurvey', () => {
         );
 
         // Step 1: Name
-        fireEvent.change(screen.getByPlaceholderText(/Enter your name/i), { target: { value: 'Test Kid' } });
+        fireEvent.change(screen.getByPlaceholderText(/Who will be learning?/i), { target: { value: 'Test Kid' } });
         fireEvent.click(screen.getByText(/Next/i));
 
         // Step 2: Age
@@ -59,15 +65,17 @@ describe('OnboardingSurvey', () => {
         // Step 4: State
         expect(screen.getByText(/Where do you live?/i)).toBeInTheDocument();
         fireEvent.change(screen.getByRole('combobox'), { target: { value: 'CA' } });
-        fireEvent.click(screen.getByText(/Finish/i));
+        fireEvent.click(screen.getByRole('button', { name: /^Finish$/i }));
 
         // Verification
         expect(mockUpdateUserProfile).toHaveBeenCalledWith({
             name: 'Test Kid',
             age: 8,
             grade: 3,
-            state: 'CA'
+            state: 'CA',
+            hasCompletedOnboarding: true
         });
         expect(mockPush).toHaveBeenCalledWith('/');
     });
 });
+
