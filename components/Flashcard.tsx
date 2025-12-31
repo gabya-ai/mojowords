@@ -39,11 +39,17 @@ export default function Flashcard({ word, onResult }: FlashcardProps) {
                     context: `Word: ${word.word}, Definition: ${word.definition}, Sentence: ${word.sentence}`
                 })
             });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.message || `Error ${res.status}: Failed to fetch AI`);
+            }
+
             const data = await res.json();
             setAiExplanation(data.text);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            setAiExplanation('Sorry, I couldn\'t find an explanation right now.');
+            setAiExplanation(`⚠️ ${error.message || 'Connection failed'}`);
         } finally {
             setIsLoadingAi(false);
         }

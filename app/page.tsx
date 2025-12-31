@@ -10,34 +10,78 @@ export default function Home() {
   const { addWord, deleteWord, toggleStar, words, userProfile } = useWords();
   const [currentWordId, setCurrentWordId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Get the current word object from context if it exists
   const currentWord = words.find(w => w.id === currentWordId);
 
   const handleWordSubmit = async (wordText: string) => {
     setIsLoading(true);
+    setError(null);
 
-    // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      // 1. Call the AI API
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: `Define the word "${wordText}" for a child. Return ONLY a valid JSON object (no markdown, no backticks) with these exact keys:
+          - definition: a simple, child-friendly definition (string)
+          - sentence: an example sentence including the word (string)
+          - difficulty: one of "EASY", "MEDIUM", "CHALLENGE" (string)
+          - gradeLevel: a number between 1 and 6 (number)
+          - funFact: a short fun fact about the word (optional string)`
+        }),
+      });
 
-    // Mock word data generation
-    const newId = Date.now().toString();
-    const mockWord: Word = {
-      id: newId,
-      word: wordText,
-      timestamp: Date.now(),
-      definition: `A ${wordText} is a wonderful thing that helps us learn and grow. It's something special that we can use in many different ways.`,
-      sentence: `I saw a beautiful ${wordText} in the garden today!`,
-      imageUrl: `https://placehold.co/400x300/A2D8A2/ffffff.png?text=${encodeURIComponent(wordText)}`,
-      gradeLevel: Math.floor(Math.random() * 5) + 1,
-      difficulty: 'MEDIUM',
-      isStarred: false
-    };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error(`Offline Mode: ${errorData.message || 'API Key Missing'}`);
+        }
+        // Surface the real backend error details
+        throw new Error(errorData.details || errorData.message || `AI Request Failed (${response.status})`);
+      }
 
-    // Auto-save immediately
-    addWord(mockWord);
-    setCurrentWordId(newId);
-    setIsLoading(false);
+      const data = await response.json();
+
+      // Parse the text result as JSON
+      let aiResult;
+      try {
+        const cleanText = data.text.replace(/```json/g, '').replace(/```/g, '').trim();
+        aiResult = JSON.parse(cleanText);
+      } catch (e) {
+        console.error("Failed to parse AI response:", data.text);
+        throw new Error("Invalid AI response format");
+      }
+
+      // 2. Create the Word object
+      const newId = Date.now().toString();
+      const newWord: Word = {
+        id: newId,
+        word: wordText,
+        timestamp: Date.now(),
+        definition: aiResult.definition,
+        sentence: aiResult.sentence,
+        imageUrl: `https://placehold.co/400x300/A2D8A2/ffffff.png?text=${encodeURIComponent(wordText)}`,
+        gradeLevel: aiResult.gradeLevel || 1,
+        difficulty: (aiResult.difficulty as 'EASY' | 'MEDIUM' | 'CHALLENGE') || 'MEDIUM',
+        isStarred: false,
+        comment: aiResult.funFact || ''
+      };
+
+      addWord(newWord);
+      setCurrentWordId(newId);
+
+    } catch (error: any) {
+      console.error("Error fetching word data:", error);
+      setError(error.message || "Failed to generate word.");
+      // CRITICAL: NO SILENT FALLBACK TO MOCK DATA
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = () => {
@@ -85,9 +129,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Word Input Section - SIGNIFICANTLY WIDENED */}
       <div className="w-full transform transition-all hover:scale-[1.005]">
         <WordInput onSubmit={handleWordSubmit} isLoading={isLoading} />
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-600 text-sm font-bold text-center animate-pulse">
+            ⚠️ {error}
+          </div>
+        )}
       </div>
 
       {/* Word Card Display */}
@@ -111,16 +159,7 @@ export default function Home() {
       )}
 
 
-      {/* Word Card Display */}
-      {currentWord && (
-        <div className="max-w-2xl mx-auto animate-fade-in relative z-10">
-          <WordCard
-            word={currentWord}
-            onDelete={handleDelete}
-            onToggleStar={handleToggleStar}
-          />
-        </div>
-      )}
+
 
 
     </div>
