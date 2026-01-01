@@ -10,7 +10,7 @@ export default function SideNavigation() {
         { name: 'Home', href: '/', icon: '⭐' },     // Using Star for Home per ref
         { name: 'Flashcard', href: '/review', icon: '🧠' }, // Renamed from Review
         { name: 'Vocabulary', href: '/vocabulary', icon: '📖' }, // Re-mapped for clarity
-        { name: 'Practice', href: '/practice', icon: '🌱' },
+        { name: 'Test Mode', href: '/test', icon: '📝' },
         { name: 'Awards', href: '/awards', icon: '🏆' },
         { name: 'Profile', href: '/profile', icon: '🎒' },
     ];
@@ -47,9 +47,6 @@ export default function SideNavigation() {
                     );
                 })}
             </ul>
-
-
-
         </nav>
     );
 }

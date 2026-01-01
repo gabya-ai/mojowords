@@ -36,7 +36,7 @@ describe('WordsContext', () => {
         expect(result.current.userProfile.email).toBe('');
     });
 
-    it('can add and delete words', () => {
+    it('can add and delete words', async () => {
         const { result } = renderHook(() => useWords(), { wrapper });
 
         const newWord: Word = {
@@ -50,8 +50,8 @@ describe('WordsContext', () => {
             difficulty: 'EASY'
         };
 
-        act(() => {
-            result.current.addWord(newWord);
+        await act(async () => {
+            await result.current.addWord(newWord);
         });
 
         expect(result.current.words).toHaveLength(1);
@@ -64,7 +64,7 @@ describe('WordsContext', () => {
         expect(result.current.words).toHaveLength(0);
     });
 
-    it('handles duplicate words by moving to top (overwriting)', () => {
+    it('handles duplicate words by moving to top (overwriting)', async () => {
         const { result } = renderHook(() => useWords(), { wrapper });
 
         const word1: Word = {
@@ -89,15 +89,15 @@ describe('WordsContext', () => {
             difficulty: 'EASY'
         };
 
-        act(() => {
-            result.current.addWord(word1);
+        await act(async () => {
+            await result.current.addWord(word1);
         });
 
         expect(result.current.words).toHaveLength(1);
         expect(result.current.words[0].id).toBe('1');
 
-        act(() => {
-            result.current.addWord(word2);
+        await act(async () => {
+            await result.current.addWord(word2);
         });
 
         expect(result.current.words).toHaveLength(1); // Should still be 1
@@ -119,7 +119,7 @@ describe('WordsContext', () => {
     });
 
 
-    it('updates word mastery on review', () => {
+    it('updates word mastery on review', async () => {
         const { result } = renderHook(() => useWords(), { wrapper });
 
         const word: Word = {
@@ -134,8 +134,8 @@ describe('WordsContext', () => {
             mastery: 0
         };
 
-        act(() => {
-            result.current.addWord(word);
+        await act(async () => {
+            await result.current.addWord(word);
         });
 
         act(() => {

@@ -41,6 +41,9 @@ export default function Home() {
         if (response.status === 401) {
           throw new Error(`Offline Mode: ${errorData.message || 'API Key Missing'}`);
         }
+        if (response.status === 429 || errorData.error === 'RATE_LIMIT_EXCEEDED') {
+          throw new Error(`Busy Bee! 🐝 The garden is crowded. Please wait a few seconds and try again.`);
+        }
         // Surface the real backend error details
         throw new Error(errorData.details || errorData.message || `AI Request Failed (${response.status})`);
       }
@@ -65,15 +68,15 @@ export default function Home() {
         timestamp: Date.now(),
         definition: aiResult.definition,
         sentence: aiResult.sentence,
-        imageUrl: `https://placehold.co/400x300/A2D8A2/ffffff.png?text=${encodeURIComponent(wordText)}`,
+        imageUrl: aiResult.imageUrl || `https://placehold.co/400x300/A2D8A2/ffffff.png?text=${encodeURIComponent(wordText)}`,
         gradeLevel: aiResult.gradeLevel || 1,
         difficulty: (aiResult.difficulty as 'EASY' | 'MEDIUM' | 'CHALLENGE') || 'MEDIUM',
         isStarred: false,
-        comment: aiResult.funFact || ''
+        comment: ''
       };
 
-      addWord(newWord);
-      setCurrentWordId(newId);
+      const savedWord = await addWord(newWord);
+      setCurrentWordId(savedWord.id);
 
     } catch (error: any) {
       console.error("Error fetching word data:", error);

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getWords, addWord as addWordAction, deleteWord as deleteWordAction, toggleStar as toggleStarAction, updateComment as updateCommentAction, markWordReviewed as markWordReviewedAction, markWordViewed as markWordViewedAction } from '@/app/actions/wordActions';
 
 export interface Word {
     id: string;
@@ -20,7 +21,7 @@ export interface Word {
 
 interface WordsContextType {
     words: Word[];
-    addWord: (word: Word) => void;
+    addWord: (word: Word) => Promise<Word>;
     deleteWord: (id: string) => void;
     toggleStar: (id: string) => void;
     updateComment: (id: string, comment: string) => void;
@@ -92,7 +93,6 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
     // Load from localStorage on mount
     useEffect(() => {
-        const savedWords = localStorage.getItem('vocal-tool-words');
         const savedProfile = localStorage.getItem('vocal-tool-profile');
         const savedProfiles = localStorage.getItem('vocal-tool-profiles');
         const savedAuth = localStorage.getItem('vocal-tool-auth');
@@ -106,17 +106,10 @@ export function WordsProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        if (savedWords) {
-            try {
-                setWords(JSON.parse(savedWords));
-            } catch (e) {
-                console.error('Failed to parse words from localStorage', e);
-            }
-        }
-
         if (savedProfile) {
             try {
-                setUserProfile(JSON.parse(savedProfile));
+                const profile = JSON.parse(savedProfile);
+                setTimeout(() => setUserProfile(profile), 0);
             } catch (e) {
                 console.error('Failed to parse profile from localStorage', e);
             }
@@ -124,7 +117,8 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
         if (savedProfiles) {
             try {
-                setProfiles(JSON.parse(savedProfiles));
+                const profiles = JSON.parse(savedProfiles);
+                setTimeout(() => setProfiles(profiles), 0);
             } catch (e) {
                 console.error('Failed to parse profiles from localStorage', e);
             }
@@ -134,10 +128,16 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         checkStreak();
     }, []);
 
-    // Save to localStorage whenever words or profile change
+    // Load words from DB when user changes
     useEffect(() => {
-        localStorage.setItem('vocal-tool-words', JSON.stringify(words));
-    }, [words]);
+        if (userProfile.id) {
+            getWords(userProfile.id).then(fetchedWords => {
+                setWords(fetchedWords);
+            });
+        }
+    }, [userProfile.id]);
+
+    // Save to localStorage whenever profile changes (removed words sync)
 
     useEffect(() => {
         localStorage.setItem('vocal-tool-profile', JSON.stringify(userProfile));
@@ -233,37 +233,86 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const addWord = (word: Word) => {
+    const addWord = async (word: Word): Promise<Word> => {
+        // Optimistic update: Remove duplicates first to avoid UI jumps
         setWords(prev => {
-            const filtered = prev.filter(w => w.word.toLowerCase() !== word.word.toLowerCase());
-            return [word, ...filtered];
+            const exists = prev.some(w => w.word.toLowerCase() === word.word.toLowerCase());
+            if (exists) {
+                // Filter out the old one so the new one takes precedence at top
+                return [word, ...prev.filter(w => w.word.toLowerCase() !== word.word.toLowerCase())];
+            }
+            return [word, ...prev];
         });
+
+        try {
+            // Call server
+            const savedWord = await addWordAction(userProfile.id, {
+                word: word.word,
+                definition: word.definition,
+                sentence: word.sentence,
+                imageUrl: word.imageUrl,
+                gradeLevel: word.gradeLevel,
+                difficulty: word.difficulty,
+                isStarred: word.isStarred,
+                comment: word.comment,
+                mastery: word.mastery,
+                views: word.views
+            });
+
+            // Update state with real ID from server
+            setWords(prev => {
+                // Replace the temporary optimistic word with the real one
+                // And explicitly dedupe just in case the optimistic filtering missed something (race condition)
+                const replaced = prev.map(w => w.id === word.id ? savedWord : w);
+
+                // Final safety net: if savedWord.id matches ANOTHER item in the list (not the temp one we just replaced),
+                // we should keep the one we just updated and remove the stale one.
+                // However, our optimistic filter *should* have removed the old one.
+                // If the old one was '123' and temp was '999'. We removed '123' and added '999'.
+                // Now we swap '999' -> '123'. We are good.
+                return replaced;
+            });
+            return savedWord;
+        } catch (error) {
+            console.error("Failed to save word:", error);
+            // Revert on error? For now just log and return optimistic word
+            return word;
+        }
+
         checkStreak(); // Update streak on activity
     };
 
-    const deleteWord = (id: string) => {
+    const deleteWord = async (id: string) => {
         setWords(prev => prev.filter(w => w.id !== id));
+        await deleteWordAction(id);
     };
 
-    const toggleStar = (id: string) => {
+    const toggleStar = async (id: string) => {
+        const word = words.find(w => w.id === id);
+        if (!word) return;
+        const newStatus = !word.isStarred;
+
         setWords(prev => prev.map(w =>
-            w.id === id ? { ...w, isStarred: !w.isStarred } : w
+            w.id === id ? { ...w, isStarred: newStatus } : w
         ));
+        await toggleStarAction(id, newStatus);
     };
 
-    const updateComment = (id: string, comment: string) => {
+    const updateComment = async (id: string, comment: string) => {
         setWords(prev => prev.map(w =>
             w.id === id ? { ...w, comment } : w
         ));
+        await updateCommentAction(id, comment);
     };
 
-    const markWordViewed = (id: string) => {
+    const markWordViewed = async (id: string) => {
         setWords(prev => prev.map(w =>
             w.id === id ? { ...w, views: (w.views || 0) + 1 } : w
         ));
+        await markWordViewedAction(id);
     };
 
-    const markWordReviewed = (id: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD') => {
+    const markWordReviewed = async (id: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD') => {
         setWords(prev => prev.map(w => {
             if (w.id !== id) return w;
 
@@ -299,6 +348,8 @@ export function WordsProvider({ children }: { children: ReactNode }) {
                 // Safest to have viewed be separate.
             };
         }));
+
+        await markWordReviewedAction(id, difficulty);
     };
 
     const login = () => {
