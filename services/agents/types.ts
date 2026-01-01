@@ -17,6 +17,7 @@ export interface FillInBlankQuestion extends QuestionBase {
     type: 'fill-in-blank';
     sentence: string; // The sentence with the blank
     correctAnswer: string;
+    options: string[]; // Options for the blank
     explanation: string;
 }
 

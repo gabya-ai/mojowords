@@ -7,7 +7,7 @@ export class ExplanationAgent implements IExplanationAgent {
 
     constructor(apiKey: string) {
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { responseMimeType: "application/json" } });
+        this.model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest', generationConfig: { responseMimeType: "application/json" } });
     }
 
     async explain(question: TestQuestion, userAnswer: string, result: EvaluationResult): Promise<string> {

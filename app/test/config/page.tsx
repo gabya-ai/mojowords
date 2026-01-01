@@ -4,30 +4,62 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTestContext } from '@/context/TestContext';
 import { TestMode } from '@/services/agents/types';
+import { useWords } from '@/context/WordsContext';
 
 export default function TestConfigPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const mode = (searchParams.get('mode') as TestMode) || 'multiple-choice';
     const { startSession } = useTestContext();
+    const { words } = useWords();
 
     const [count, setCount] = useState(5);
     const [difficulty, setDifficulty] = useState('medium');
     const [theme, setTheme] = useState('Adventure');
+    const [source, setSource] = useState<'starred' | 'recent' | 'all' | 'random'>('all');
     const [isStarting, setIsStarting] = useState(false);
 
-    // You might want to pull User Age or Interests from a global user context if available
-    // For now we hardcode or let them pick context implicitly via "Difficulty"
+    // Filter words based on source
+    const getTargetWords = () => {
+        let filtered = [];
+        switch (source) {
+            case 'starred':
+                filtered = words.filter(w => w.isStarred);
+                break;
+            case 'recent':
+                filtered = [...words].sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+                break;
+            case 'all':
+                filtered = words;
+                break;
+            case 'random':
+            default:
+                return []; // Agent will generate unrelated words
+        }
+        // Extract actual strings, shuffle if needed, and slice to count
+        return filtered.map(w => w.word).sort(() => 0.5 - Math.random()).slice(0, count);
+    };
 
     const handleStart = async () => {
+        const targetWords = getTargetWords();
+
+        // Validation
+        if (source === 'starred' && targetWords.length === 0) {
+            alert("You don't have enough starred words!");
+            return;
+        }
+
         setIsStarting(true);
         await startSession(mode, count, {
             difficultyLevel: difficulty as any,
             userInterests: mode === 'story-learning' ? [theme] : [],
-            userAge: 8 // default
+            userAge: 8,
+            targetWords: targetWords
         });
         router.push('/test/session');
     };
+
+    const starredCount = words.filter(w => w.isStarred).length;
 
     return (
         <div className="max-w-xl mx-auto space-y-8">
@@ -38,7 +70,7 @@ export default function TestConfigPage() {
                 >
                     ← Back
                 </button>
-                <h1 className="text-2xl font-bold capitalize">Configure {mode.replace(/-/g, ' ')}</h1>
+                <h1 className="text-2xl font-bold capitalize pt-1">Configure {mode.replace(/-/g, ' ')}</h1>
                 <p className="text-gray-600">Customize your assessment settings.</p>
             </div>
 
@@ -57,6 +89,42 @@ export default function TestConfigPage() {
                                 {n}
                             </button>
                         ))}
+                    </div>
+                </div>
+
+                {/* Source Selection */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Vocabulary Source</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={() => setSource('all')}
+                            className={`p-3 rounded-lg border text-left text-sm ${source === 'all' ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            <div className="font-semibold text-gray-900">All Words</div>
+                            <div className="text-gray-500 text-xs">Mix from your collection ({words.length})</div>
+                        </button>
+                        <button
+                            onClick={() => setSource('recent')}
+                            className={`p-3 rounded-lg border text-left text-sm ${source === 'recent' ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            <div className="font-semibold text-gray-900">Recently Added</div>
+                            <div className="text-gray-500 text-xs">Last 10 planted words</div>
+                        </button>
+                        <button
+                            onClick={() => setSource('starred')}
+                            disabled={starredCount === 0}
+                            className={`p-3 rounded-lg border text-left text-sm ${source === 'starred' ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500' : starredCount === 0 ? 'opacity-50 cursor-not-allowed border-gray-100' : 'border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            <div className="font-semibold text-gray-900">Starred Only</div>
+                            <div className="text-gray-500 text-xs">{starredCount} favorites available</div>
+                        </button>
+                        <button
+                            onClick={() => setSource('random')}
+                            className={`p-3 rounded-lg border text-left text-sm ${source === 'random' ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            <div className="font-semibold text-gray-900">Surprise Me 🎲</div>
+                            <div className="text-gray-500 text-xs">New words generated by AI</div>
+                        </button>
                     </div>
                 </div>
 

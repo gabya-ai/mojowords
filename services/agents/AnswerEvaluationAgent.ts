@@ -7,7 +7,7 @@ export class AnswerEvaluationAgent implements IAnswerEvaluationAgent {
 
     constructor(apiKey: string) {
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { responseMimeType: "application/json" } });
+        this.model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest', generationConfig: { responseMimeType: "application/json" } });
     }
 
     async evaluate(question: TestQuestion, userAnswer: string, context: AgentContext): Promise<EvaluationResult> {

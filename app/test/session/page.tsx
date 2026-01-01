@@ -66,23 +66,24 @@ export default function TestSessionPage() {
                 {currentQuestion.type === 'fill-in-blank' && (
                     <div className="flex-1">
                         <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold mb-4">Fill in the Blank</span>
-                        <h2 className="text-2xl font-serif leading-relaxed text-gray-800">
-                            {(currentQuestion as any).sentence.split('____').map((part: string, i: number, arr: any[]) => (
-                                <span key={i}>
-                                    {part}
-                                    {i < arr.length - 1 && (
-                                        <input
-                                            type="text"
-                                            value={currentAnswer}
-                                            onChange={(e) => setAnswer(e.target.value)}
-                                            className="mx-2 border-b-2 border-indigo-400 focus:border-indigo-600 focus:outline-none text-center w-32 font-bold text-indigo-700 bg-indigo-50"
-                                            placeholder="?"
-                                            autoFocus
-                                        />
-                                    )}
-                                </span>
-                            ))}
+                        <h2 className="text-2xl font-serif leading-relaxed text-gray-800 mb-8">
+                            {currentQuestion.sentence.replace('____', '___________')}
                         </h2>
+
+                        <div className="grid grid-cols-1 gap-3">
+                            {(currentQuestion as any).options?.map((opt: string) => (
+                                <button
+                                    key={opt}
+                                    onClick={() => setAnswer(opt)}
+                                    className={`p-4 rounded-lg border-2 text-left transition-all ${currentAnswer === opt
+                                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold shadow-sm'
+                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -99,8 +100,8 @@ export default function TestSessionPage() {
                                     key={opt}
                                     onClick={() => setAnswer(opt)}
                                     className={`p-4 rounded-lg border-2 text-left transition-all ${currentAnswer === opt
-                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold shadow-sm'
-                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold shadow-sm'
+                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                         }`}
                                 >
                                     {opt}
