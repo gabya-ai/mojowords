@@ -21,8 +21,14 @@ export async function POST(req: NextRequest) {
             const storyAgent = new StoryAgent(apiKey);
             generatedContent = await storyAgent.generateStory(count, context || {});
         } else {
+            // Backend validation: Ensure count doesn't exceed target words if provided
+            let safeCount = count;
+            if (context?.targetWords && Array.isArray(context.targetWords) && context.targetWords.length > 0) {
+                safeCount = Math.min(count, context.targetWords.length);
+            }
+
             const generator = new TestQuestionGeneratorAgent(apiKey);
-            generatedContent = await generator.generate(mode, count, context || {});
+            generatedContent = await generator.generate(mode, safeCount, context || {});
         }
 
         // Validate Content

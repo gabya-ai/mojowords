@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTestContext } from '@/context/TestContext';
 import { TestMode } from '@/services/agents/types';
@@ -18,6 +18,10 @@ export default function TestConfigPage() {
     const [theme, setTheme] = useState('Adventure');
     const [source, setSource] = useState<'starred' | 'recent' | 'all' | 'random'>('all');
     const [isStarting, setIsStarting] = useState(false);
+
+    // Auto-clamp count when source changes or words load
+    const starredCount = words.filter(w => w.isStarred).length;
+    const availableWordsCount = source === 'starred' ? starredCount : words.length;
 
     // Filter words based on source
     const getTargetWords = () => {
@@ -49,8 +53,11 @@ export default function TestConfigPage() {
             return;
         }
 
+        // Clamp count to available words if not in random mode
+        const actualCount = source === 'random' ? count : Math.min(count, targetWords.length);
+
         setIsStarting(true);
-        await startSession(mode, count, {
+        await startSession(mode, actualCount, {
             difficultyLevel: difficulty as any,
             userInterests: mode === 'story-learning' ? [theme] : [],
             userAge: 8,
@@ -59,8 +66,11 @@ export default function TestConfigPage() {
         router.push('/test/session');
     };
 
-    const starredCount = words.filter(w => w.isStarred).length;
-    const availableWordsCount = source === 'starred' ? starredCount : words.length;
+    useEffect(() => {
+        if (source !== 'random' && availableWordsCount > 0 && count > availableWordsCount) {
+            setCount(availableWordsCount);
+        }
+    }, [source, availableWordsCount, count]);
 
     return (
         <div className="max-w-xl mx-auto space-y-8">

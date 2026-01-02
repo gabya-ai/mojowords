@@ -28,19 +28,23 @@ interface WordsContextType {
     updateComment: (id: string, comment: string) => void;
     markWordReviewed: (id: string, difficulty: 'EASY' | 'MEDIUM' | 'HARD') => void;
     markWordViewed: (id: string) => void;
-    userProfile: {
-        id: string; // Add ID for tracking
+    userProfile: { // Represents the ACTIVE Child/Gardener
+        id: string;
         name: string;
         streak: number;
         lastVisit: string | null;
-        email?: string;
         age?: number;
         grade?: number;
-        state?: string;
         hasCompletedOnboarding?: boolean;
+    };
+    parentSettings: { // Represents the Logged-in Parent (Static)
+        name: string;
+        email: string;
+        state?: string;
     };
     updateUserName: (name: string) => void;
     updateUserProfile: (data: Partial<WordsContextType['userProfile']>) => void;
+    updateParentSettings: (data: Partial<WordsContextType['parentSettings']>) => void;
     profiles: WordsContextType['userProfile'][]; // List of all profiles
     addProfile: (name: string) => boolean;
     switchProfile: (id: string) => void;
@@ -56,30 +60,41 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     const { data: session } = useSession();
     const [words, setWords] = useState<Word[]>([]);
     const [profiles, setProfiles] = useState<WordsContextType['userProfile'][]>([]);
+
+    // Parent Identity (Logged in user)
+    const [parentSettings, setParentSettings] = useState<WordsContextType['parentSettings']>({
+        name: 'Gardener',
+        email: '',
+        state: ''
+    });
+
+    // Active Child (Currently viewing)
     const [userProfile, setUserProfile] = useState<WordsContextType['userProfile']>({
         id: 'default',
         name: 'Explorer',
         streak: 0,
         lastVisit: null,
-        email: ''
+        hasCompletedOnboarding: true // Default explorer is considered ready
     });
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Sync Session
+    // Sync Session to Parent Settings
     useEffect(() => {
         if (session?.user) {
             setTimeout(() => {
                 setIsAuthenticated(true);
-                setUserProfile(prev => {
-                    // If the email matches current or we are switching to logged in user
-                    if (prev.email === session.user?.email) return prev;
+                // Set Parent Info
+                setParentSettings(prev => ({
+                    ...prev,
+                    name: session.user?.name || "Gardener",
+                    email: session.user?.email || prev.email,
+                }));
 
-                    return {
-                        ...prev,
-                        name: session.user?.name || prev.name,
-                        email: session.user?.email || "",
-                        id: session.user?.email || prev.id, // Use email as ID for stability across devices (simple version)
-                    };
+                // Ensure a default child profile exists if none selected or empty
+                setUserProfile(prev => {
+                    // If we already have a selected child that isn't the parent email-based one (legacy fix), keep it.
+                    // For now, just keep the current active child or default.
+                    return prev;
                 });
             }, 0);
         }
@@ -203,6 +218,10 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
     const updateUserProfile = (data: Partial<typeof userProfile>) => {
         setUserProfile(prev => ({ ...prev, ...data }));
+    };
+
+    const updateParentSettings = (data: Partial<WordsContextType['parentSettings']>) => {
+        setParentSettings(prev => ({ ...prev, ...data }));
     };
 
     const addProfile = (name: string) => {
@@ -371,18 +390,28 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
     const login = () => {
         setIsAuthenticated(true);
-        // Only set default profile if it doesn't have an email (new user concept)
-        setUserProfile(prev => prev.email ? prev : { ...prev, name: 'Explorer', email: 'explorer@example.com' });
+        // Developer Mode: Set Parent Defaults
+        setParentSettings(prev => ({
+            ...prev,
+            name: 'Gardener',
+            email: 'parent@example.com',
+            state: 'CA'
+        }));
+        // Ensure default child exists
+        if (profiles.length === 0 && userProfile.id === 'default') {
+            // Default is fine
+        }
     };
 
     const logout = () => {
         setIsAuthenticated(false);
-        setUserProfile(prev => ({ ...prev, email: '' })); // Reset sensitive info but keep prefs if needed
+        setParentSettings({ name: 'Gardener', email: '', state: '' }); // Reset Parent
+        setUserProfile(prev => ({ ...prev, id: 'default', name: 'Explorer', streak: 0 })); // Reset Child
         localStorage.removeItem('vocal-tool-auth');
     };
 
     return (
-        <WordsContext.Provider value={{ words, addWord, deleteWord, toggleStar, updateComment, markWordReviewed, markWordViewed, userProfile, updateUserName, updateUserProfile, profiles, addProfile, switchProfile, deleteProfile, isAuthenticated, login, logout }}>
+        <WordsContext.Provider value={{ words, addWord, deleteWord, toggleStar, updateComment, markWordReviewed, markWordViewed, userProfile, parentSettings, updateUserName, updateUserProfile, updateParentSettings, profiles, addProfile, switchProfile, deleteProfile, isAuthenticated, login, logout }}>
             {children}
         </WordsContext.Provider>
     );
