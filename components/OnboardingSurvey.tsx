@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
 
 export default function OnboardingSurvey() {
-    const { updateUserProfile } = useWords();
+    const { updateUserProfile, updateParentSettings } = useWords();
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<{
@@ -28,8 +28,10 @@ export default function OnboardingSurvey() {
             name: formData.name,
             age: formData.age,
             grade: formData.grade,
-            state: formData.state,
             hasCompletedOnboarding: true
+        });
+        updateParentSettings({
+            state: formData.state
         });
         router.push('/');
     };

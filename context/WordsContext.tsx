@@ -267,8 +267,7 @@ export function WordsProvider({ children }: { children: ReactNode }) {
                         id: 'default',
                         name: 'Explorer',
                         streak: 0,
-                        lastVisit: null,
-                        email: ''
+                        lastVisit: null
                     });
                 }
                 return remaining;
