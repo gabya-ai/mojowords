@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSession } from "next-auth/react";
 import { getWords, addWord as addWordAction, deleteWord as deleteWordAction, toggleStar as toggleStarAction, updateComment as updateCommentAction, markWordReviewed as markWordReviewedAction, markWordViewed as markWordViewedAction } from '@/app/actions/wordActions';
 
 export interface Word {
@@ -52,6 +53,7 @@ interface WordsContextType {
 export const WordsContext = createContext<WordsContextType | undefined>(undefined);
 
 export function WordsProvider({ children }: { children: ReactNode }) {
+    const { data: session } = useSession();
     const [words, setWords] = useState<Word[]>([]);
     const [profiles, setProfiles] = useState<WordsContextType['userProfile'][]>([]);
     const [userProfile, setUserProfile] = useState<WordsContextType['userProfile']>({
@@ -63,32 +65,54 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     });
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+    // Sync Session
+    useEffect(() => {
+        if (session?.user) {
+            setTimeout(() => {
+                setIsAuthenticated(true);
+                setUserProfile(prev => {
+                    // If the email matches current or we are switching to logged in user
+                    if (prev.email === session.user?.email) return prev;
+
+                    return {
+                        ...prev,
+                        name: session.user?.name || prev.name,
+                        email: session.user?.email || "",
+                        id: session.user?.email || prev.id, // Use email as ID for stability across devices (simple version)
+                    };
+                });
+            }, 0);
+        }
+    }, [session]);
+
     const checkStreak = () => {
-        setUserProfile(prev => {
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-            const lastVisit = prev.lastVisit;
+        setTimeout(() => {
+            setUserProfile(prev => {
+                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                const lastVisit = prev.lastVisit;
 
-            // If visiting for the first time or same day, just update last visit
-            if (!lastVisit) {
-                return { ...prev, streak: 1, lastVisit: today };
-            }
+                // If visiting for the first time or same day, just update last visit
+                if (!lastVisit) {
+                    return { ...prev, streak: 1, lastVisit: today };
+                }
 
-            if (lastVisit === today) {
-                return prev;
-            }
+                if (lastVisit === today) {
+                    return prev;
+                }
 
-            // Check if last visit was yesterday
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
+                // Check if last visit was yesterday
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-            if (lastVisit === yesterdayStr) {
-                return { ...prev, streak: prev.streak + 1, lastVisit: today };
-            } else {
-                // Missed a day (or more), reset streak
-                return { ...prev, streak: 1, lastVisit: today };
-            }
-        });
+                if (lastVisit === yesterdayStr) {
+                    return { ...prev, streak: prev.streak + 1, lastVisit: today };
+                } else {
+                    // Missed a day (or more), reset streak
+                    return { ...prev, streak: 1, lastVisit: today };
+                }
+            });
+        }, 0);
     };
 
     // Load from localStorage on mount
@@ -339,13 +363,6 @@ export function WordsProvider({ children }: { children: ReactNode }) {
                 ...w,
                 mastery: newMastery,
                 lastReviewed: Date.now(),
-                // Views are handled by implicit view or explicit review?
-                // If we also count specific review action as a view (redundant if viewed on load?):
-                // Let's decide: Viewing calls viewed. Grading calls reviewed.
-                // We keep views increment here just in case? Or rely on viewed?
-                // If we call viewed on load, then this increment is double counting if coincident?
-                // Actually, the prompt says "When a word is shown/reviewed... vocabulary table state".
-                // Safest to have viewed be separate.
             };
         }));
 

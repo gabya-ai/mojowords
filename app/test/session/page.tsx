@@ -48,7 +48,15 @@ export default function TestSessionPage() {
         <div className="max-w-2xl mx-auto">
             {/* Progress */}
             <div className="mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                <span className="font-medium text-gray-500">Question {currentIndex + 1} of {questions.length}</span>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => router.push('/test')}
+                        className="text-sm font-bold text-[#8A8A8A] hover:text-[#4A6D51] transition-colors"
+                    >
+                        ← Exit & Save
+                    </button>
+                    <span className="font-medium text-gray-500">Question {currentIndex + 1} of {questions.length}</span>
+                </div>
                 <div className="flex gap-1">
                     {questions.map((_, idx) => (
                         <div

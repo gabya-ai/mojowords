@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
 
 export default function ProfilePage() {
-    const { userProfile, updateUserName, logout, profiles, addProfile, switchProfile, deleteProfile } = useWords();
+    const { userProfile, updateUserName, updateUserProfile, logout, profiles, addProfile, switchProfile, deleteProfile } = useWords();
     const router = useRouter();
     const [isEditing, setIsEditing] = useState(false);
     const [newName, setNewName] = useState(userProfile.name);
@@ -55,20 +55,82 @@ export default function ProfilePage() {
                         </div>
 
                         {isEditing ? (
-                            <form onSubmit={handleSubmit} className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    className="flex-1 text-2xl font-bold text-[#4A6D51] border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent px-1 py-0.5"
-                                    autoFocus
-                                />
-                                <button
-                                    type="submit"
-                                    className="bg-[#4A6D51] text-white px-4 py-1 rounded-full text-sm font-bold hover:bg-[#3A5D41] transition-colors"
-                                >
-                                    Save
-                                </button>
+                            <form onSubmit={handleSubmit} className="space-y-4 bg-[#FDFBF7] p-4 rounded-xl border border-[#F1F3C4]">
+                                {/* Name Field */}
+                                <div>
+                                    <label className="block text-xs font-bold text-[#8A8A8A] uppercase mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        className="w-full text-lg font-bold text-[#4A6D51] border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent py-1"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {/* Conditional Fields */}
+                                {userProfile.email ? (
+                                    /* Parent Fields */
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#8A8A8A] uppercase mb-1">Email (Read-only)</label>
+                                            <input
+                                                type="email"
+                                                value={userProfile.email}
+                                                disabled
+                                                className="w-full text-base text-gray-500 bg-transparent border-b border-gray-200 py-1 cursor-not-allowed"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#8A8A8A] uppercase mb-1">US State</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. California"
+                                                value={userProfile.state || ''}
+                                                onChange={(e) => updateUserProfile({ state: e.target.value })}
+                                                className="w-full text-base font-medium text-[#4A6D51] border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent py-1"
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    /* Child Fields */
+                                    <div className="flex gap-4">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-bold text-[#8A8A8A] uppercase mb-1">Age</label>
+                                            <input
+                                                type="number"
+                                                value={userProfile.age || ''}
+                                                onChange={(e) => updateUserProfile({ age: parseInt(e.target.value) || 0 })}
+                                                className="w-full text-base font-medium text-[#4A6D51] border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent py-1"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-bold text-[#8A8A8A] uppercase mb-1">Grade</label>
+                                            <input
+                                                type="number"
+                                                value={userProfile.grade || ''}
+                                                onChange={(e) => updateUserProfile({ grade: parseInt(e.target.value) || 0 })}
+                                                className="w-full text-base font-medium text-[#4A6D51] border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 pt-2">
+                                    <button
+                                        type="submit"
+                                        className="flex-1 bg-[#4A6D51] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#3A5D41] transition-colors"
+                                    >
+                                        Save Changes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditing(false)}
+                                        className="px-4 py-2 font-bold text-[#8A8A8A] hover:bg-gray-100 rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
                             </form>
                         ) : (
                             <h2 className="text-3xl font-extrabold text-[#4A6D51]">{userProfile.name}</h2>

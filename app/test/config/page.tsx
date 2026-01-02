@@ -60,6 +60,7 @@ export default function TestConfigPage() {
     };
 
     const starredCount = words.filter(w => w.isStarred).length;
+    const availableWordsCount = source === 'starred' ? starredCount : words.length;
 
     return (
         <div className="max-w-xl mx-auto space-y-8">
@@ -79,16 +80,24 @@ export default function TestConfigPage() {
                 {/* Count Selection */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Number of Questions</label>
-                    <div className="flex gap-4">
-                        {[3, 5, 10].map(n => (
-                            <button
-                                key={n}
-                                onClick={() => setCount(n)}
-                                className={`px-4 py-2 rounded-lg border ${count === n ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 hover:border-indigo-300'}`}
-                            >
-                                {n}
-                            </button>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-[#8A8A8A] uppercase">Number of Questions</label>
+                        <div className="flex items-center gap-4">
+                            <input
+                                type="number"
+                                min="1"
+                                max={availableWordsCount}
+                                value={count}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) setCount(Math.min(val, availableWordsCount));
+                                }}
+                                className="w-24 text-2xl font-bold text-[#4A6D51] bg-[#FDFBF7] border-2 border-[#F1F3C4] rounded-xl px-3 py-2 text-center focus:border-[#4A6D51] outline-none"
+                            />
+                            <span className="text-[#8A8A8A] text-sm font-bold opacity-70">
+                                / {availableWordsCount} words available
+                            </span>
+                        </div>
                     </div>
                 </div>
 

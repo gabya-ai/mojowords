@@ -104,9 +104,44 @@ export default function Flashcard({ word, onResult }: FlashcardProps) {
                     <p className="text-lg text-gray-600 italic mb-4 text-center">{word.definition}</p>
                     <p className="text-md text-gray-500 text-center mb-6">&quot;{word.sentence}&quot;</p>
 
+                    {/* AI Explanation Area - Enhanced */}
                     {aiExplanation && (
-                        <div className="bg-white p-3 rounded-xl border border-dashed border-[#4A6D51] mb-4 text-sm text-[#4A6D51] w-full max-h-32 overflow-y-auto">
-                            <strong>AI Says:</strong> {aiExplanation}
+                        <div className="bg-[#FDFBF7] p-4 rounded-2xl border border-dashed border-[#4A6D51]/30 w-full animate-fade-in overflow-y-auto max-h-48 scrollbar-thin scrollbar-thumb-[#C1E1C1] scrollbar-track-transparent">
+                            <div className="flex items-center gap-2 mb-2 sticky top-0 bg-[#FDFBF7] py-1 border-b border-[#F1F3C4]">
+                                <span className="text-xl">🤖</span>
+                                <span className="font-bold text-[#4A6D51] text-sm uppercase tracking-wide">AI Says:</span>
+                            </div>
+
+                            <div className="text-sm text-[#4A6D51] leading-relaxed space-y-3">
+                                {(() => {
+                                    try {
+                                        // Try to parse if it's JSON
+                                        const parsed = JSON.parse(aiExplanation);
+                                        return (
+                                            <>
+                                                {parsed.definition && (
+                                                    <p>
+                                                        <span className="font-bold">Definition:</span> {parsed.definition}
+                                                    </p>
+                                                )}
+                                                {parsed.sentence && (
+                                                    <p>
+                                                        <span className="font-bold">Example:</span> &quot;{parsed.sentence}&quot;
+                                                    </p>
+                                                )}
+                                                {parsed.fun_fact && (
+                                                    <p className="italic text-[#8A8A8A]">
+                                                        <span className="font-bold not-italic text-[#F4B9B2]">Did you know?</span> {parsed.fun_fact}
+                                                    </p>
+                                                )}
+                                            </>
+                                        );
+                                    } catch (e) {
+                                        // Fallback for plain text
+                                        return <p>{aiExplanation}</p>;
+                                    }
+                                })()}
+                            </div>
                         </div>
                     )}
 

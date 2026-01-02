@@ -35,6 +35,12 @@ export default function WordInput({ onSubmit, isLoading }: WordInputProps) {
                         disabled={isLoading}
                         className="flex-1 px-4 py-3 text-lg border-2 border-[#F1F3C4] rounded-xl focus:outline-none focus:border-[#A2D8A2] focus:ring-2 focus:ring-[#C1E1C1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder-[#C1E1C1]"
                         autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isLoading && word.trim()) {
+                                e.preventDefault();
+                                handleSubmit(e as any);
+                            }
+                        }}
                     />
 
                     <button

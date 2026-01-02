@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { TestQuestion, TestMode, AgentContext, EvaluationResult } from '@/services/agents/types';
 
 export type SessionStatus = 'config' | 'loading' | 'active' | 'submitting' | 'results';
@@ -17,14 +17,33 @@ export interface TestSessionState {
 }
 
 export const useTestSession = () => {
-    const [state, setState] = useState<TestSessionState>({
-        questions: [],
-        currentIndex: 0,
-        userAnswers: {},
-        results: {},
-        status: 'config',
-        config: null,
+    const [state, setState] = useState<TestSessionState>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('test_session_state');
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error("Failed to load session", e);
+            }
+        }
+        return {
+            questions: [],
+            currentIndex: 0,
+            userAnswers: {},
+            results: {},
+            status: 'config',
+            config: null,
+        };
     });
+
+    // Persist state changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('test_session_state', JSON.stringify(state));
+        }
+    }, [state]);
 
     const startSession = useCallback(async (mode: TestMode, count: number, context: AgentContext) => {
         setState(prev => ({ ...prev, status: 'loading', config: { mode, count, context } }));

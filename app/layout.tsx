@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SideNavigation from "@/components/SideNavigation";
-import { WordsProvider } from "@/context/WordsContext";
+import Providers from "@/components/Providers";
 import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <WordsProvider>
+        <Providers>
           {/* Subtle nature gradient background */}
           <div className="flex min-h-screen bg-gradient-to-br from-[#FDFBF7] via-[#F4F9F4] to-[#FFF8E7]">
             <AuthGuard>
@@ -27,7 +27,7 @@ export default function RootLayout({
               </main>
             </AuthGuard>
           </div>
-        </WordsProvider>
+        </Providers>
       </body>
     </html>
   );

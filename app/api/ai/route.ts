@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         `;
 
         // Use standard model for text logic
-        const contentModel = genAI.getGenerativeModel({ model: 'gemini-flash-latest', generationConfig: { responseMimeType: "application/json" } });
+        const contentModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: "application/json" } });
         const contentResult = await contentModel.generateContent(contentPrompt);
         const contentJson = JSON.parse(contentResult.response.text());
 
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
         // Pollinations URL format: https://pollinations.ai/p/{prompt}?width={w}&height={h}&seed={seed}
 
         const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
-        const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}`;
+        // Use nologo=true to avoid watermarks if possible, and ensure consistent size
+        const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
 
         return NextResponse.json({
             text: JSON.stringify({

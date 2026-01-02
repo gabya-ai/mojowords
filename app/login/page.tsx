@@ -1,5 +1,6 @@
 'use client';
 
+import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
@@ -11,21 +12,11 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         setIsLoading(true);
-        // Simulate network delay for realistic "Loading..." state
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        login(); // Update context state
-        setIsLoading(false);
-
-        // Check if onboarding is needed
-        // We need to access the updated state, but state updates are async.
-        // Ideally we pass this info or check a ref, but for this mock:
-        const hasOnboarded = localStorage.getItem('vocal-tool-profile')?.includes('"hasCompletedOnboarding":true');
-
-        if (hasOnboarded) {
-            router.push('/');
-        } else {
-            router.push('/onboarding');
+        try {
+            await signIn('google', { callbackUrl: '/' });
+        } catch (error) {
+            console.error("Login failed", error);
+            setIsLoading(false);
         }
     };
 
