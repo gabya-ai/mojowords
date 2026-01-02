@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: NextRequest) {
     try {
@@ -9,23 +8,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        // Enforce API Key existence
-        if (!apiKey) {
-            console.error('GEMINI_API_KEY not found in environment variables.');
-            return NextResponse.json(
-                { error: 'MISSING_API_KEY', message: 'Gemini API Key is not configured.' },
-                { status: 401 }
-            );
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-
         // --- AGENT 1: CONTENT GENERATOR ---
         // Generates the educational content and a visual description for the artist
-        const contentPrompt = `
+        // NOTE: We are using Pollinations.ai (OpenAI layout) which doesn't support responseMimeType: "application/json" natively consistently.
+        // We must prompt engineer for strict JSON.
+        const systemPrompt = `
         You are a helpful vocabulary tutor for an 8-year-old child.
+        Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json ... \`\`\`.
+        
         Word to define: "${prompt}"
         ${context ? `Context: ${context}` : ''}
 
@@ -37,7 +27,7 @@ export async function POST(req: NextRequest) {
            - Avoid text in the image.
            - Focus on the key concept.
         
-        Return JSON ONLY:
+        Required JSON Structure:
         {
             "definition": "string",
             "sentence": "string",
@@ -48,21 +38,47 @@ export async function POST(req: NextRequest) {
         }
         `;
 
-        // Use standard model for text logic
-        const contentModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: "application/json" } });
-        const contentResult = await contentModel.generateContent(contentPrompt);
-        const contentJson = JSON.parse(contentResult.response.text());
+        // Call Pollinations.ai Text API
+        // It accepts a simple POST with the prompt or OpenAI format. We'll use the simplest effective method.
+        const response = await fetch('https://text.pollinations.ai/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                messages: [
+                    { role: 'system', content: 'You are a JSON-only API. You must return raw JSON without any markdown or explanatory text.' },
+                    { role: 'user', content: systemPrompt }
+                ],
+                model: 'openai', // Pollinations specific
+                seed: Math.floor(Math.random() * 1000) // randomness
+            }),
+        });
 
-        // --- AGENT 2: REFLECTOR ---
-        // Validate appropriateness. (Implicitly handled by strong system prompt + Flash 2.0 capability for now).
-        // If we wanted to be strict, we'd do a second call here: "Critique this JSON...". 
-        // For speed, we will proceed.
+        if (!response.ok) {
+            throw new Error(`Pollinations API error: ${response.statusText}`);
+        }
+
+        const responseText = await response.text();
+
+        // Sanitize output in case the model returns markdown code blocks despite instructions
+        let cleanText = responseText.trim();
+        if (cleanText.startsWith('```json')) {
+            cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanText.startsWith('```')) {
+            cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+
+        let contentJson;
+        try {
+            contentJson = JSON.parse(cleanText);
+        } catch (e) {
+            console.error('Failed to parse JSON from AI:', cleanText);
+            throw new Error('AI returned invalid JSON');
+        }
 
         // --- AGENT 3: ARTIST ---
-        // We use Pollinations.ai (reliable, free, fast) for the actual image generation based on Agent 1's description.
-        // This guarantees a real image return without complex base64 handling or experimental model quotas.
         // Pollinations URL format: https://pollinations.ai/p/{prompt}?width={w}&height={h}&seed={seed}
-
         const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
         // Use nologo=true to avoid watermarks if possible, and ensure consistent size
         const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
@@ -73,8 +89,6 @@ export async function POST(req: NextRequest) {
                 imageUrl: imageUrl // Pass the real generated image URL
             })
         });
-
-
 
     } catch (error: any) {
         console.error('Error generating AI content:', error);
