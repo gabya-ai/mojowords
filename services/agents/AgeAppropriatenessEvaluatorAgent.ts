@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AgentContext } from './types';
+import { cleanJson } from './utils';
 
 export class AgeAppropriatenessEvaluatorAgent {
     private genAI: GoogleGenerativeAI;
@@ -33,7 +34,8 @@ export class AgeAppropriatenessEvaluatorAgent {
 
         try {
             const result = await this.model.generateContent(prompt);
-            const validation = JSON.parse(result.response.text());
+            const cleanedText = cleanJson(result.response.text());
+            const validation = JSON.parse(cleanedText);
 
             if (validation.safe) {
                 return { safe: true };

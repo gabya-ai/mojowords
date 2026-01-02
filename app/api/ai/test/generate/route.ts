@@ -45,6 +45,12 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Test Generation Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('429') || errorMessage.includes('Quota') || errorMessage.includes('Too Many Requests')) {
+            return NextResponse.json({ error: 'The garden is busy! 🐝 Please wait a minute and try again.' }, { status: 429 });
+        }
+
+        return NextResponse.json({ error: 'Failed to generate test. Please try again.' }, { status: 500 });
     }
 }

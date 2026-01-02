@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ITestQuestionGeneratorAgent, TestMode, AgentContext, TestQuestion } from './types';
+import { cleanJson } from './utils';
 
 export class TestQuestionGeneratorAgent implements ITestQuestionGeneratorAgent {
   private genAI: GoogleGenerativeAI;
@@ -81,7 +82,8 @@ export class TestQuestionGeneratorAgent implements ITestQuestionGeneratorAgent {
     try {
       const result = await this.model.generateContent(prompt);
       const text = result.response.text();
-      const questions = JSON.parse(text) as TestQuestion[];
+      const cleanedText = cleanJson(text);
+      const questions = JSON.parse(cleanedText) as TestQuestion[];
 
       // Post-processing to ensure IDs are unique if AI fails to do so (or just assign UUIDs here)
       return questions.map((q, idx) => ({

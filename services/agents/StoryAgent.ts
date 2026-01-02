@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AgentContext, TestQuestion, StoryQuestion } from './types';
+import { cleanJson } from './utils';
 
 export interface IStoryAgent {
   generateStory(count: number, context: AgentContext): Promise<TestQuestion[]>;
@@ -51,7 +52,8 @@ export class StoryAgent implements IStoryAgent {
     try {
       const result = await this.model.generateContent(prompt);
       const text = result.response.text();
-      const questions = JSON.parse(text) as StoryQuestion[];
+      const cleanedText = cleanJson(text);
+      const questions = JSON.parse(cleanedText) as StoryQuestion[];
 
       return questions.map(q => ({
         ...q,

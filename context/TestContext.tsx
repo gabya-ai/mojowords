@@ -5,7 +5,7 @@ import { useTestSession, TestSessionState } from '@/hooks/useTestSession';
 
 interface TestContextType {
     state: TestSessionState;
-    startSession: (mode: any, count: number, context: any) => Promise<void>;
+    startSession: (mode: any, count: number, context: any) => Promise<{ success: boolean; error?: string }>;
     setAnswer: (answer: string) => void;
     nextQuestion: () => void;
     prevQuestion: () => void;

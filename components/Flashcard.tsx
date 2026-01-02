@@ -36,7 +36,8 @@ export default function Flashcard({ word, onResult }: FlashcardProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: `Explain the word "${word.word}" to an 8-year-old.`,
-                    context: `Word: ${word.word}, Definition: ${word.definition}, Sentence: ${word.sentence}`
+                    context: `Word: ${word.word}, Definition: ${word.definition}, Sentence: ${word.sentence}`,
+                    agent: 'teacher'
                 })
             });
 
@@ -134,6 +135,26 @@ export default function Flashcard({ word, onResult }: FlashcardProps) {
                                     {(() => {
                                         try {
                                             const parsed = JSON.parse(aiExplanation);
+                                            // Handle Teacher Agent response
+                                            if (parsed.explanation) {
+                                                return (
+                                                    <div className="space-y-3">
+                                                        {parsed.type && (
+                                                            <div className="text-[10px] font-bold text-[#A2D8A2] uppercase tracking-wide mb-1">
+                                                                {parsed.type}
+                                                            </div>
+                                                        )}
+                                                        <p>{parsed.explanation}</p>
+                                                        {parsed.fun_fact && (
+                                                            <div className="bg-[#FFF8E7] p-3 rounded-lg mt-2 text-sm">
+                                                                <span className="font-bold text-[#F4B9B2] mr-1">💡 Fun Fact:</span>
+                                                                {parsed.fun_fact}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            }
+                                            // Fallback for old format or generator responses
                                             return (
                                                 <div className="space-y-3">
                                                     {parsed.definition && <p>{parsed.definition}</p>}

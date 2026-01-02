@@ -45,7 +45,7 @@ export const useTestSession = () => {
         }
     }, [state]);
 
-    const startSession = useCallback(async (mode: TestMode, count: number, context: AgentContext) => {
+    const startSession = useCallback(async (mode: TestMode, count: number, context: AgentContext): Promise<{ success: boolean; error?: string }> => {
         setState(prev => ({ ...prev, status: 'loading', config: { mode, count, context } }));
 
         try {
@@ -66,10 +66,11 @@ export const useTestSession = () => {
                 userAnswers: {},
                 results: {},
             }));
-        } catch (error) {
+            return { success: true };
+        } catch (error: any) {
             console.error("Failed to start session:", error);
             setState(prev => ({ ...prev, status: 'config' })); // Go back to config on error
-            // Ideally show error toast
+            return { success: false, error: error.message || "Failed to start session" };
         }
     }, []);
 

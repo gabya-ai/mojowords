@@ -57,13 +57,19 @@ export default function TestConfigPage() {
         const actualCount = source === 'random' ? count : Math.min(count, targetWords.length);
 
         setIsStarting(true);
-        await startSession(mode, actualCount, {
+        const result = await startSession(mode, actualCount, {
             difficultyLevel: difficulty as any,
             userInterests: mode === 'story-learning' ? [theme] : [],
             userAge: 8,
             targetWords: targetWords
         });
-        router.push('/test/session');
+
+        if (result.success) {
+            router.push('/test/session');
+        } else {
+            setIsStarting(false);
+            alert(result.error || "Failed to generate test. Please try again.");
+        }
     };
 
     useEffect(() => {
