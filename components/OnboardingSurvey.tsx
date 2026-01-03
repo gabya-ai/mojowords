@@ -32,11 +32,12 @@ export default function OnboardingSurvey() {
             hasCompletedOnboarding: true
         });
         updateParentSettings({
-            state: formData.state
+            state: formData.state,
+            hasCompletedOnboarding: true
         });
 
         try {
-            await completeOnboarding();
+            await completeOnboarding(formData.name);
         } catch (e) {
             console.error("Failed to mark onboarding complete", e);
         }

@@ -2,12 +2,14 @@
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
 
 export default function LoginPage() {
     const { login } = useWords();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const errorParam = searchParams.get('error');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleGoogleLogin = async () => {
@@ -41,6 +43,16 @@ export default function LoginPage() {
 
                 {/* Login Options */}
                 <div className="mt-8 space-y-4">
+                    {errorParam === 'OAuthAccountNotLinked' && (
+                        <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm font-bold animate-pulse text-center">
+                            <p>⚠️ Account Link Error</p>
+                            <p className="font-normal mt-1">
+                                An account with this email already exists inside MojoWords but is not linked to Google.
+                                <br />Please sign in using your original method or contact support.
+                            </p>
+                        </div>
+                    )}
+
                     <button
                         onClick={handleGoogleLogin}
                         disabled={isLoading}

@@ -8,18 +8,19 @@ import WordCard from '@/components/WordCard';
 import { useWords, Word } from '@/context/WordsContext';
 
 export default function Home() {
-  const { addWord, deleteWord, toggleStar, words, userProfile } = useWords();
+  const { addWord, deleteWord, toggleStar, words, userProfile, parentSettings } = useWords();
   const [currentWordId, setCurrentWordId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Redirect to onboarding if not completed
+  // Redirect to onboarding if not completed (based on PARENT account status)
   useEffect(() => {
-    if (userProfile.hasCompletedOnboarding === false) {
+    // Only redirect if we are authenticated (have a parent) and they haven't onboarded
+    if (parentSettings.hasCompletedOnboarding === false && parentSettings.email) {
       router.push('/onboarding');
     }
-  }, [userProfile.hasCompletedOnboarding, router]);
+  }, [parentSettings.hasCompletedOnboarding, parentSettings.email, router]);
 
   // Get the current word object from context if it exists
   const currentWord = words.find(w => w.id === currentWordId);

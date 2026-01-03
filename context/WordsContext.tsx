@@ -41,6 +41,7 @@ interface WordsContextType {
         name: string;
         email: string;
         state?: string;
+        hasCompletedOnboarding?: boolean;
     };
     updateUserName: (name: string) => void;
     updateUserProfile: (data: Partial<WordsContextType['userProfile']>) => void;
@@ -65,7 +66,8 @@ export function WordsProvider({ children }: { children: ReactNode }) {
     const [parentSettings, setParentSettings] = useState<WordsContextType['parentSettings']>({
         name: 'Gardener',
         email: '',
-        state: ''
+        state: '',
+        hasCompletedOnboarding: false
     });
 
     // Active Child (Currently viewing)
@@ -83,24 +85,19 @@ export function WordsProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
             setTimeout(() => {
                 setIsAuthenticated(true);
+
+                // @ts-ignore
+                const dbOnboardingStatus = session.user?.hasCompletedOnboarding;
+
                 // Set Parent Info
                 setParentSettings(prev => ({
                     ...prev,
                     name: session.user?.name || "Gardener",
                     email: session.user?.email || prev.email,
+                    hasCompletedOnboarding: dbOnboardingStatus ?? prev.hasCompletedOnboarding
                 }));
 
-                // Ensure a default child profile exists if none selected or empty
-                setUserProfile(prev => {
-                    // Update the onboarding status from the session (database source of truth)
-                    // @ts-ignore
-                    const dbOnboardingStatus = session.user?.hasCompletedOnboarding;
-
-                    return {
-                        ...prev,
-                        hasCompletedOnboarding: dbOnboardingStatus ?? prev.hasCompletedOnboarding
-                    };
-                });
+                // ensure userProfile is not polluted by parent info
             }, 0);
         }
     }, [session]);
