@@ -2,10 +2,10 @@
 
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
-import { handler } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function completeOnboarding() {
-    const session = await getServerSession(handler);
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
         throw new Error("Not authenticated");
