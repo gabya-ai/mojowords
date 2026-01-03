@@ -13,7 +13,11 @@ export default function LoginPage() {
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         try {
-            await signIn('google', { callbackUrl: '/' });
+            // Force a hard redirect to the callback URL to avoid client-side race conditions
+            const result = await signIn('google', {
+                callbackUrl: window.location.origin,
+                redirect: true
+            });
         } catch (error) {
             console.error("Login failed", error);
             setIsLoading(false);

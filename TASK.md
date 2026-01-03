@@ -1,0 +1,33 @@
+# Vocal Tool Development Tasks
+
+- [ ] **Agentic AI Foundation** <!-- id: 5 -->
+    - [ ] **Acquisition Agents**: Refactor minimal MVP into robust services (Definition, Sentence, Picture, Evaluator, Leveling)
+    - [ ] **Review Agents**: Clarification Agent for flashcards
+    - [ ] **Engagement Agents**: Story Generator, Insight Analyzer
+- [ ] **User & Profile Management** <!-- id: 6 -->
+    - [x] Authentication (Google Sign-In)
+    - [x] Onboarding Survey (New users only)
+    - [ ] Multi-profile management (Add/Edit kids, Switch profiles)
+    - [ ] **Data Logging**: User Behavior Tables, Learning History
+- [ ] **Validation (Testing Mode)** <!-- id: 0 -->
+    - [ ] Create `/test` page layout
+    - [ ] Implement varied question types (Fill-in-the-blank, Multiple choice)
+    - [ ] **Story Learning Mode**
+    - [ ] Add result tracking and persistence
+- [ ] **Dashboard (Insights)** <!-- id: 1 -->
+    - [ ] Create `/dashboard` page
+    - [ ] **Progress Animation**: Visual journey of learning
+    - [ ] Visualize word mastery stats
+    - [ ] AI-Generated Learning Insights
+- [ ] **Backend Services** <!-- id: 7 -->
+    - [ ] Implement `ReviewService` with real DB queries
+    - [ ] Connect Spaced Repetition logic
+    - [ ] Database Schema Design (Prisma)
+- [ ] **Verification Protocol** <!-- id: 9 -->
+    - [ ] Create Golden Set for Agent Evaluation
+    - [ ] Implement Judge Agent for regression testing
+    - [ ] Setup E2E Critical Path tests
+- [ ] **Integration & Expansion** <!-- id: 8 -->
+    - [ ] Google Slides Export
+    - [ ] Community Lists / Leaderboards
+    - [ ] Mobile PWA Optimization

@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: NextRequest) {
     try {
@@ -8,14 +12,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
+        // Use Gemini 1.5 Flash (or 2.5 if available, falling back to 1.5-flash for stability)
+        // Use Gemini 1.5 Flash (or 2.5 if available, falling back to 1.5-flash for stability)
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp", // Updated to confirmed working model 2.0-flash-exp
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+
         let systemPrompt = '';
 
         if (agent === 'teacher') {
             // --- AGENT: TEACHER ---
-            // Focuses on clarification, memorization, and simple explanations.
             systemPrompt = `
              You are a friendly vocabulary tutor helping an 8-year-old REMEMBER and UNDERSTAND a word.
-             Return ONLY valid JSON.
              
              Word to explain: "${prompt}"
              ${context ? `Context: ${context}` : ''}
@@ -33,10 +44,8 @@ export async function POST(req: NextRequest) {
              `;
         } else {
             // --- AGENT: CONTENT GENERATOR (Default) ---
-            // Generates the initial educational content and a visual description
             systemPrompt = `
              You are a helpful vocabulary tutor for an 8-year-old child.
-             Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json ... \`\`\`.
              
              Word to define: "${prompt}"
              ${context ? `Context: ${context}` : ''}
@@ -61,45 +70,13 @@ export async function POST(req: NextRequest) {
              `;
         }
 
-        // Call Pollinations.ai Text API
-        const response = await fetch('https://text.pollinations.ai/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                messages: [
-                    { role: 'system', content: 'You are a JSON-only API. You must return raw JSON without any markdown or explanatory text.' },
-                    { role: 'user', content: systemPrompt }
-                ],
-                model: 'openai',
-                seed: Math.floor(Math.random() * 1000)
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`Pollinations API error: ${response.statusText}`);
-        }
-
-        const responseText = await response.text();
-
-        // Sanitize output
-        let cleanText = responseText.trim();
-        if (cleanText.startsWith('```json')) {
-            cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (cleanText.startsWith('```')) {
-            cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        }
-
-        let contentJson;
-        try {
-            contentJson = JSON.parse(cleanText);
-        } catch (e) {
-            console.error('Failed to parse JSON from AI:', cleanText);
-            throw new Error('AI returned invalid JSON');
-        }
+        const result = await model.generateContent(systemPrompt);
+        const responseText = result.response.text();
+        const contentJson = JSON.parse(responseText);
 
         // Only generate image if we are in generator mode
+        // Note: For now, we continue to use Pollinations for image generation 
+        // to return a valid URL easily without needing image storage (Gemini returns base64).
         if (agent === 'generator') {
             // --- ARTIST ---
             const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
@@ -130,3 +107,4 @@ export async function POST(req: NextRequest) {
         );
     }
 }
+
