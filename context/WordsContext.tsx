@@ -92,9 +92,14 @@ export function WordsProvider({ children }: { children: ReactNode }) {
 
                 // Ensure a default child profile exists if none selected or empty
                 setUserProfile(prev => {
-                    // If we already have a selected child that isn't the parent email-based one (legacy fix), keep it.
-                    // For now, just keep the current active child or default.
-                    return prev;
+                    // Update the onboarding status from the session (database source of truth)
+                    // @ts-ignore
+                    const dbOnboardingStatus = session.user?.hasCompletedOnboarding;
+
+                    return {
+                        ...prev,
+                        hasCompletedOnboarding: dbOnboardingStatus ?? prev.hasCompletedOnboarding
+                    };
                 });
             }, 0);
         }

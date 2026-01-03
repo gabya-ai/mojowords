@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
+import { completeOnboarding } from '@/app/actions/onboardingActions';
 
 export default function OnboardingSurvey() {
     const { updateUserProfile, updateParentSettings } = useWords();
@@ -23,7 +24,7 @@ export default function OnboardingSurvey() {
     const handleNext = () => setStep(prev => prev + 1);
     const handleBack = () => setStep(prev => prev - 1);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         updateUserProfile({
             name: formData.name,
             age: formData.age,
@@ -33,6 +34,13 @@ export default function OnboardingSurvey() {
         updateParentSettings({
             state: formData.state
         });
+
+        try {
+            await completeOnboarding();
+        } catch (e) {
+            console.error("Failed to mark onboarding complete", e);
+        }
+
         router.push('/');
     };
 
@@ -52,10 +60,10 @@ export default function OnboardingSurvey() {
                 {step === 1 && (
                     <div className="space-y-4 text-center animate-slide-in">
                         <span className="text-4xl">👋</span>
-                        <h2 className="text-2xl font-extrabold text-[#4A6D51]">What should we call you?</h2>
+                        <h2 className="text-2xl font-extrabold text-[#4A6D51]">Who is learning?</h2>
                         <input
                             type="text"
-                            placeholder="Who will be learning?"
+                            placeholder="Explorer's Name"
                             value={formData.name}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                             className="w-full text-center text-xl p-3 border-b-2 border-[#F1F3C4] focus:border-[#4A6D51] outline-none bg-transparent placeholder:text-gray-300"

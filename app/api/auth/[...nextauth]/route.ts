@@ -15,14 +15,15 @@ const handler = NextAuth({
     ],
     secret: process.env.NEXTAUTH_SECRET || "dev-secret-123",
     session: {
-        strategy: "jwt", // Use JWT for easier session handling with context
+        // strategy: "jwt", // Defaults to "database" when adapter is present
     },
     callbacks: {
-        async session({ session, token }) {
-            if (session.user && token.sub) {
-                // Attach safe user ID to session
+        async session({ session, user }) {
+            if (session.user) {
                 // @ts-ignore
-                session.user.id = token.sub;
+                session.user.id = user.id;
+                // @ts-ignore
+                session.user.hasCompletedOnboarding = user.hasCompletedOnboarding;
             }
             return session;
         }

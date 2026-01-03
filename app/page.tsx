@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import WordInput from '@/components/WordInput';
 import WordCard from '@/components/WordCard';
 import { useWords, Word } from '@/context/WordsContext';
@@ -11,6 +12,14 @@ export default function Home() {
   const [currentWordId, setCurrentWordId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (userProfile.hasCompletedOnboarding === false) {
+      router.push('/onboarding');
+    }
+  }, [userProfile.hasCompletedOnboarding, router]);
 
   // Get the current word object from context if it exists
   const currentWord = words.find(w => w.id === currentWordId);
