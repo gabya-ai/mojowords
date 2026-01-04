@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
 
 export default function ProfilePage() {
-    const { userProfile, parentSettings, updateUserProfile, updateParentSettings, logout, profiles, addProfile, switchProfile, deleteProfile } = useWords();
+    const { userProfile, parentSettings, updateUserProfile, updateParentSettings, logout, profiles, addProfile, switchProfile, deleteProfile, isAuthenticated } = useWords();
     const router = useRouter();
+
+    // Redirect to onboarding if no profiles exist (and we are authenticated/loaded)
+    useEffect(() => {
+        if (isAuthenticated && profiles.length === 0) {
+            router.push('/onboarding');
+        }
+    }, [isAuthenticated, profiles.length, router]);
 
     // Parent Edit State
     const [isEditingParent, setIsEditingParent] = useState(false);
@@ -273,9 +280,9 @@ export default function ProfilePage() {
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (newKidName.trim()) {
-                                                const success = addProfile(newKidName.trim());
+                                                const success = await addProfile(newKidName.trim());
                                                 if (success) {
                                                     setShowAddModal(false);
                                                     setNewKidName('');

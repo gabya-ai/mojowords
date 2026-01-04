@@ -37,6 +37,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          mode: 'text_only',
           prompt: `Define the word "${wordText}" for a child. Return ONLY a valid JSON object (no markdown, no backticks) with these exact keys:
           - definition: a simple, child-friendly definition (string)
           - sentence: an example sentence including the word (string)
@@ -78,7 +79,7 @@ export default function Home() {
         timestamp: Date.now(),
         definition: aiResult.definition,
         sentence: aiResult.sentence,
-        imageUrl: aiResult.imageUrl || `https://placehold.co/400x300/A2D8A2/ffffff.png?text=${encodeURIComponent(wordText)}`,
+        imageUrl: '', // Empty to trigger "Generate" button
         gradeLevel: aiResult.gradeLevel || 1,
         difficulty: (aiResult.difficulty as 'EASY' | 'MEDIUM' | 'CHALLENGE') || 'MEDIUM',
         isStarred: false,

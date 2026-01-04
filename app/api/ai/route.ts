@@ -1,29 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { getAIClient } from '@/app/lib/ai';
 
 export async function POST(req: NextRequest) {
     try {
-        const { prompt, context, agent = 'generator' } = await req.json();
+        const { prompt, context, agent = 'generator', mode = 'full' } = await req.json();
 
         if (!prompt) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
-        // Use Gemini 2.0 Flash (Available in user's model list)
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
+        const aiClient = getAIClient();
 
+        // --- MODE: IMAGE ONLY ---
+        if (mode === 'image_only') {
+            try {
+                console.log("[Route] Generating Image Only for prompt: ", prompt);
+                const imageUrl = await aiClient.generateImage(prompt);
+                return NextResponse.json({ imageUrl });
+            } catch (imgError: any) {
+                console.error("[Route] Failed to generate AI image", imgError);
+                // Fallback to Pollinations
+                const safeImagePrompt = encodeURIComponent(`${prompt} cartoon style children book illustration`);
+                const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=512&height=512&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+                return NextResponse.json({ imageUrl });
+            }
+        }
+
+        // --- MODE: TEXT GENERATION (Default / Text Only) ---
         let systemPrompt = '';
 
         if (agent === 'teacher') {
-            // --- AGENT: TEACHER ---
+            // ... (Teacher Prompt - Unchanged) ...
             systemPrompt = `
              You are a friendly vocabulary tutor helping an 8-year-old REMEMBER and UNDERSTAND a word.
              
@@ -40,9 +47,10 @@ export async function POST(req: NextRequest) {
                  "type": "analogy" | "mnemonic" | "fact",
                  "fun_fact": "string" 
              }
+             Return ONLY valid JSON.
              `;
         } else {
-            // --- AGENT: CONTENT GENERATOR (Default) ---
+            // ... (Generator Prompt - Unchanged) ...
             systemPrompt = `
              You are a helpful vocabulary tutor for an 8-year-old child.
              
@@ -66,20 +74,46 @@ export async function POST(req: NextRequest) {
                  "funFact": "string",
                  "visual_description": "string"
              }
+             Return ONLY valid JSON.
              `;
         }
 
-        const result = await model.generateContent(systemPrompt);
-        const responseText = result.response.text();
-        const contentJson = JSON.parse(responseText);
+        // Use unified client to generate content
+        // Using gemini-2.0-flash-exp for text
+        const responseText = await aiClient.generateContent("gemini-2.0-flash-exp", systemPrompt, {
+            responseMimeType: "application/json"
+        });
 
+        // Clean potentially markdown-wrapped JSON
+        const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const contentJson = JSON.parse(cleanText);
+
+        // --- MODE: TEXT ONLY ---
+        if (mode === 'text_only') {
+            // Return text immediately, skip image generation
+            return NextResponse.json({
+                text: JSON.stringify({
+                    ...contentJson,
+                    imageUrl: null // Explicitly null to indicate no image yet
+                })
+            });
+        }
+
+        // --- MODE: FULL (Legacy/Default) ---
         // Only generate image if we are in generator mode
-        // Note: For now, we continue to use Pollinations for image generation 
-        // to return a valid URL easily without needing image storage (Gemini returns base64).
         if (agent === 'generator') {
             // --- ARTIST ---
-            const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
-            const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+            let imageUrl = '';
+            try {
+                console.log("[Route] Generating Image for visual description: ", contentJson.visual_description);
+                // Use the Hybrid client's image generation (Standard/API Key)
+                imageUrl = await aiClient.generateImage(contentJson.visual_description);
+            } catch (imgError) {
+                console.error("[Route] Failed to generate AI image, falling back to pollinations", imgError);
+                // Fallback to Pollinations
+                const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
+                imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+            }
 
             return NextResponse.json({
                 text: JSON.stringify({
@@ -88,7 +122,6 @@ export async function POST(req: NextRequest) {
                 })
             });
         } else {
-            // For teacher agent, just return the text JSON
             return NextResponse.json({
                 text: JSON.stringify(contentJson)
             });

@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWords } from '@/context/WordsContext';
-import { completeOnboarding } from '@/app/actions/onboardingActions';
+
 
 export default function OnboardingSurvey() {
-    const { updateUserProfile, updateParentSettings } = useWords();
+    const { addProfile, updateParentSettings } = useWords();
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<{
@@ -25,24 +25,32 @@ export default function OnboardingSurvey() {
     const handleBack = () => setStep(prev => prev - 1);
 
     const handleSubmit = async () => {
-        updateUserProfile({
-            name: formData.name,
-            age: formData.age,
-            grade: formData.grade,
-            hasCompletedOnboarding: true
-        });
-        updateParentSettings({
-            state: formData.state,
-            hasCompletedOnboarding: true
-        });
-
         try {
-            await completeOnboarding(formData.name);
+            // 1. Create the profile via Context (updates local state + DB)
+            const success = await addProfile(formData.name, formData.age, formData.grade);
+
+            if (success) {
+                // 2. Update Parent Settings (State is stored on Parent User model usually, 
+                // but for now we update context which might sync to DB if we had a server action for it)
+                // We'll update the context at least so UI reflects it.
+                updateParentSettings({
+                    state: formData.state,
+                    hasCompletedOnboarding: true
+                });
+
+                router.push('/');
+            } else {
+                console.error("Failed to create profile/onboarding");
+                // Handle duplicate name or error? For onboarding, we might just proceed or show error.
+                // If it fails, we might force a push anyway or show an alert. 
+                // For now, let's assume success or redirect.
+                router.push('/');
+            }
+
         } catch (e) {
             console.error("Failed to mark onboarding complete", e);
+            router.push('/');
         }
-
-        router.push('/');
     };
 
     return (

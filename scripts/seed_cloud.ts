@@ -10,7 +10,8 @@ async function main() {
         update: {},
         create: {
             id: '1767170999959',
-            name: 'User 1767170999959'
+            name: 'User 1767170999959',
+            email: 'user1@example.com' // Ensure valid user
         }
     });
 
@@ -25,13 +26,29 @@ async function main() {
 
     console.log('Users ensured.');
 
-    // 2. Create Words
-    // We use upsert or create. Since DB is empty, create is fine.
-    // We will use the exact data found previously.
-    const words = [
+    // 2. Create Child Profiles
+    const child1 = await prisma.childProfile.upsert({
+        where: {
+            // Composite unique constraint workaround or just use findFirst
+            // Assuming no ID known, let's create a deterministic ID or use findFirst
+            id: 'child_1767170999959_default'
+        },
+        update: {},
+        create: {
+            id: 'child_1767170999959_default',
+            userId: user1.id,
+            name: 'Seed Child',
+            age: 8,
+            grade: 3
+        }
+    });
+
+    console.log('Child Profiles ensured.');
+
+    // 3. Create Words
+    const wordsRaw = [
         {
             id: 'cmjv3x0lb0001bhz1u5cz7quv',
-            userId: '1767170999959',
             word: 'feature',
             definition: 'A special or important part of something that helps you notice it.',
             sentence: 'The coolest feature of the new toy robot is that it can fly!',
@@ -46,7 +63,6 @@ async function main() {
         },
         {
             id: 'cmjv3y86n0003bhz18kue38bf',
-            userId: '1767170999959',
             word: 'feature',
             definition: 'A feature is a special part, look, or quality that something has, like the color of a car or a button on a toy.',
             sentence: 'My favorite feature of the new playground is the super tall slide!',
@@ -61,7 +77,6 @@ async function main() {
         },
         {
             id: 'cmjv431pa0005bhz1mql8tn2m',
-            userId: '1767170999959',
             word: 'feature',
             definition: "A special part or a noticeable thing that helps you describe or understand something. It's like a cool detail that stands out.",
             sentence: 'The best feature of the new toy robot is that it can actually talk and sing.',
@@ -76,7 +91,6 @@ async function main() {
         },
         {
             id: 'cmjv43ayd0007bhz1syj6pu7s',
-            userId: '1767170999959',
             word: 'garden',
             definition: 'A special outdoor spot where people grow pretty flowers, tasty vegetables, or other plants.',
             sentence: 'My grandpa and I are going to water the tomatoes in the garden this afternoon.',
@@ -91,7 +105,6 @@ async function main() {
         },
         {
             id: 'cmjv4a4ae0009bhz1jhq6awka',
-            userId: '1767170999959',
             word: 'garden',
             definition: 'A special outdoor area, usually with soil, where people grow beautiful flowers, trees, or yummy vegetables and fruits.',
             sentence: 'My little sister loves to visit the garden every morning to see if the zucchini and carrots have grown bigger.',
@@ -106,18 +119,19 @@ async function main() {
         }
     ];
 
-    for (const w of words) {
+    for (const w of wordsRaw) {
         await prisma.word.upsert({
             where: { id: w.id },
             update: {},
             create: {
                 ...w,
-                createdAt: new Date(w.createdAt) // Parse timestamp
+                childProfileId: child1.id,
+                createdAt: new Date(w.createdAt)
             }
         });
     }
 
-    console.log(`Seeded ${words.length} words successfully.`);
+    console.log(`Seeded ${wordsRaw.length} words successfully.`);
 }
 
 main()
