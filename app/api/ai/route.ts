@@ -12,10 +12,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
-        // Use Gemini 1.5 Flash (or 2.5 if available, falling back to 1.5-flash for stability)
-        // Use Gemini 1.5 Flash (or 2.5 if available, falling back to 1.5-flash for stability)
+        // Use Gemini 2.0 Flash (Available in user's model list)
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-exp", // Updated to confirmed working model 2.0-flash-exp
+            model: "gemini-2.0-flash",
             generationConfig: {
                 responseMimeType: "application/json",
             }

@@ -14,14 +14,24 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         setIsLoading(true);
+
+        // Add a safety timeout to reset loading state if it hangs too long
+        const timeoutId = setTimeout(() => {
+            setIsLoading(false);
+            alert("Sign in is taking longer than expected. Please refresh the page and try again.");
+        }, 15000); // 15 seconds
+
         try {
             // Force a hard redirect to the callback URL to avoid client-side race conditions
             const result = await signIn('google', {
                 callbackUrl: window.location.origin,
                 redirect: true
             });
+            // If redirect happens, this part might not be reached, but if it is, clear timeout
+            clearTimeout(timeoutId);
         } catch (error) {
             console.error("Login failed", error);
+            clearTimeout(timeoutId);
             setIsLoading(false);
         }
     };

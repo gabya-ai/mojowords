@@ -28,7 +28,7 @@ A premium, engaging vocabulary building tool initially designing for school stud
 **What it does**: Enables a personalized, persistent experience for multiple learners.
 *Current Status: Frontend Context Implemented. Backend Integration Pending.*
 - **Features**:
-    - [ ] **Authentication**: Secure logging via Google Sign-In to sync data across devices.
+    - [x] **Authentication**: Secure logging via Google Sign-In to sync data across devices. (Verified: Double sign-in fixed, Parent/Child isolation fixed).
     - [x] **Onboarding Survey**: A one-time flow to capture the learner's name, age, grade, and location.
     - [ ] **Profile Management**: Manage multiple kid profiles and switch contexts.
     - [ ] **Data Logging & Tracking**:

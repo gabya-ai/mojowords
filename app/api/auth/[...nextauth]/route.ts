@@ -14,6 +14,7 @@ export const authOptions: AuthOptions = {
         }),
     ],
     secret: process.env.NEXTAUTH_SECRET || "dev-secret-123",
+    debug: true, // Enable debug logs to investigate sign-in issues
     session: {
         // strategy: "jwt", // Defaults to "database" when adapter is present
     },
@@ -24,6 +25,8 @@ export const authOptions: AuthOptions = {
                 session.user.id = user.id;
                 // @ts-ignore
                 session.user.hasCompletedOnboarding = user.hasCompletedOnboarding;
+                // @ts-ignore
+                session.user.name = user.name;
             }
             return session;
         }
