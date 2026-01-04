@@ -19,10 +19,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ imageUrl });
             } catch (imgError: any) {
                 console.error("[Route] Failed to generate AI image", imgError);
-                // Fallback to Pollinations
-                const safeImagePrompt = encodeURIComponent(`${prompt} cartoon style children book illustration`);
-                const imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=512&height=512&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
-                return NextResponse.json({ imageUrl });
+                throw imgError; // Propagate error so client shows error UI
             }
         }
 
@@ -109,10 +106,9 @@ export async function POST(req: NextRequest) {
                 // Use the Hybrid client's image generation (Standard/API Key)
                 imageUrl = await aiClient.generateImage(contentJson.visual_description);
             } catch (imgError) {
-                console.error("[Route] Failed to generate AI image, falling back to pollinations", imgError);
-                // Fallback to Pollinations
-                const safeImagePrompt = encodeURIComponent(`${contentJson.visual_description} cartoon style children book illustration`);
-                imageUrl = `https://pollinations.ai/p/${safeImagePrompt}?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+                console.error("[Route] Failed to generate AI image", imgError);
+                // Allow empty image url (or throw if strict) - deciding to just log and leave imageUrl empty to avoid crashing the whole text generation
+                // imageUrl remains '' 
             }
 
             return NextResponse.json({

@@ -13,6 +13,7 @@ interface FlashcardProps {
 export default function Flashcard({ word, onResult }: FlashcardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
     const [showImage, setShowImage] = useState(false);
+    const [imageError, setImageError] = useState(false);
     const [aiExplanation, setAiExplanation] = useState<string | null>(null);
     const [isLoadingAi, setIsLoadingAi] = useState(false);
 
@@ -73,13 +74,19 @@ export default function Flashcard({ word, onResult }: FlashcardProps) {
 
                     {word.imageUrl && (
                         <div className="relative w-48 h-48 mb-8 flex items-center justify-center">
-                            {showImage ? (
+                            {showImage && !imageError ? (
                                 <Image
                                     src={word.imageUrl}
                                     alt={word.word}
                                     fill
+                                    unoptimized={true}
                                     className="object-contain rounded-xl"
+                                    onError={() => setImageError(true)}
                                 />
+                            ) : showImage && imageError ? (
+                                <div className="text-center text-red-300 text-xs font-bold">
+                                    Image failed to load
+                                </div>
                             ) : (
                                 <button
                                     onClick={handleShowImage}

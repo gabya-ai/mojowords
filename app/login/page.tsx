@@ -101,26 +101,9 @@ export default function LoginPage() {
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div>
                     </button>
 
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-200"></div>
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-[#FDFBF7] text-gray-400">or</span>
-                        </div>
-                    </div>
 
-                    <button
-                        onClick={() => {
-                            // Dev Mode: Login as new user to see survey
-                            login();
-                            localStorage.removeItem('vocal-tool-profile'); // Clear profile to force new user state
-                            router.push('/onboarding');
-                        }}
-                        className="w-full text-[#4A6D51] font-bold text-sm hover:underline opacity-50 hover:opacity-100"
-                    >
-                        Developer Mode (Test Survey)
-                    </button>
+
+
                 </div>
 
                 {/* Footer */}
@@ -128,6 +111,11 @@ export default function LoginPage() {
                     By signing in, you agree to our Terms of Service and Privacy Policy.
                     <br /> Parents, managing multiple child accounts? <a href="#" className="text-[#4A6D51] underline">Click here</a>.
                 </p>
+
+                {/* Developer Access */}
+                <div className="mt-4 text-center">
+                    <a href="/login/magic" className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors">✨</a>
+                </div>
             </div>
         </div>
     );

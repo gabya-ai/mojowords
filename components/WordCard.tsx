@@ -12,6 +12,7 @@ interface WordCardProps {
 
 export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps) {
     const [showMarkedConfirm, setShowMarkedConfirm] = useState(false);
+    const [imageError, setImageError] = useState(false); // New error state
 
     const difficultyColors: Record<string, string> = {
         EASY: 'bg-[#C1E1C1] text-[#4A6D51] border-transparent',
@@ -32,6 +33,7 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
 
     const handleGenerateImage = async () => {
         setIsGeneratingImage(true);
+        setImageError(false);
         try {
             // Use word + definition as the prompt/context for the image
             const imagePrompt = `A colorful, child-friendly illustration for the word "${word.word}". Definition: ${word.definition}. Avoid text.`;
@@ -53,7 +55,7 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
             }
         } catch (error) {
             console.error("Image generation failed", error);
-            alert("Sorry, the artist is on a break! Try again later.");
+            setImageError(true);
         } finally {
             setIsGeneratingImage(false);
         }
@@ -131,13 +133,26 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
 
                 {/* Image Section - On Demand */}
                 <div className="relative h-48 w-full rounded-xl overflow-hidden shadow-inner bg-[#FDFBF7] group border border-white flex items-center justify-center">
-                    {word.imageUrl ? (
+                    {imageError ? (
+                        <div className="text-center p-4">
+                            <div className="text-red-400 text-3xl mb-2">🎨⚠️</div>
+                            <p className="text-red-500 font-bold text-sm">Couldn&apos;t paint the picture.</p>
+                            <button
+                                onClick={handleGenerateImage}
+                                className="text-[#4A6D51] text-xs underline mt-1 hover:text-[#3A5D41]"
+                            >
+                                Try Again
+                            </button>
+                        </div>
+                    ) : word.imageUrl ? (
                         <>
                             <Image
                                 src={word.imageUrl}
                                 alt={word.word}
                                 fill
+                                unoptimized={true} // Avoid Next.js proxy errors for external dynamic images
                                 className="object-contain transition-transform duration-1000 group-hover:scale-105"
+                                onError={() => setImageError(true)}
                             />
                             <div className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-md">
                                 AI Generated
@@ -162,7 +177,7 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
                                     <>🎨 Paint a Picture</>
                                 )}
                             </button>
-                            <p className="text-[#8A8A8A] text-xs mt-2 font-medium">Click to visualize "{word.word}"</p>
+                            <p className="text-[#8A8A8A] text-xs mt-2 font-medium">Click to visualize &quot;{word.word}&quot;</p>
                         </div>
                     )}
                 </div>
