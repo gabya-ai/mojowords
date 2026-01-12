@@ -1,13 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { IExplanationAgent, EvaluationResult, TestQuestion } from './types';
+import { getAIClient } from '@/app/lib/ai';
+
+interface AIClient {
+    generateContent(model: string, prompt: string, config?: any): Promise<string>;
+}
 
 export class ExplanationAgent implements IExplanationAgent {
-    private genAI: GoogleGenerativeAI;
-    private model: any;
+    private client: AIClient;
 
-    constructor(apiKey: string) {
-        this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest', generationConfig: { responseMimeType: "application/json" } });
+    constructor(client: AIClient) {
+        this.client = client;
     }
 
     async explain(question: TestQuestion, userAnswer: string, result: EvaluationResult): Promise<string> {
@@ -32,10 +34,15 @@ export class ExplanationAgent implements IExplanationAgent {
     `;
 
         try {
-            const chatResult = await this.model.generateContent(prompt);
-            const json = JSON.parse(chatResult.response.text());
+            const responseText = await this.client.generateContent(
+                'gemini-2.0-flash-exp', // Use consistent strong model
+                prompt,
+                { responseMimeType: "application/json" }
+            );
+            const json = JSON.parse(responseText);
             return json.explanation;
         } catch (error) {
+            console.error("Explanation Agent failed:", error);
             return `The correct answer was "${question.correctAnswer}".`;
         }
     }

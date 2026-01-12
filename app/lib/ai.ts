@@ -224,8 +224,10 @@ class HybridAIClient implements AIClient {
     }
 
     async generateContent(model: string, prompt: string, config?: GenerationConfig): Promise<string> {
-        // use Vertex for Text (Reliable, Verified Quota)
-        return this.vertexClient.generateContent(model, prompt, config);
+        // Use Standard Client (API Key) for Text
+        // This ensures access to experimental models (gemini-2.0-flash-exp) and simplifies quota management 
+        // as the user verified API Key text gen works well.
+        return this.stdClient.generateContent(model, prompt, config);
     }
 
     async generateImage(prompt: string): Promise<string> {
