@@ -237,7 +237,16 @@ class HybridAIClient implements AIClient {
 }
 
 // Initializer
+// Global cache for the AI Client to prevent re-initialization (and re-auth) on every request
+let cachedClient: AIClient | null = null;
+
+// Initializer
 export function getAIClient(): AIClient {
+    // Return cached client if available (Singleton Pattern)
+    if (cachedClient) {
+        return cachedClient;
+    }
+
     // Load credentials at runtime to ensure process.env is populated
     const { PROJECT_ID, LOCATION, API_KEY, CLIENT_EMAIL, PRIVATE_KEY } = getCredentials();
 
@@ -247,19 +256,25 @@ export function getAIClient(): AIClient {
     const hasVertex = !!PROJECT_ID;
     const hasApiKey = !!API_KEY;
 
+    let client: AIClient;
+
     if (hasVertex && hasApiKey) {
         console.log(`[AI] Using HBIRD Client: Vertex (Text + Image)`);
         const v = new VertexAIClientWrapper(PROJECT_ID!, LOCATION, CLIENT_EMAIL, PRIVATE_KEY);
         const s = new StandardAIClient(API_KEY!);
-        return new HybridAIClient(v, s);
+        client = new HybridAIClient(v, s);
     } else if (hasVertex) {
         console.log(`[AI] Using Vertex AI Only`);
-        return new VertexAIClientWrapper(PROJECT_ID!, LOCATION, CLIENT_EMAIL, PRIVATE_KEY);
+        client = new VertexAIClientWrapper(PROJECT_ID!, LOCATION, CLIENT_EMAIL, PRIVATE_KEY);
     } else if (hasApiKey) {
         console.log(`[AI] Using Standard Google Generative AI (API Key) Only`);
-        return new StandardAIClient(API_KEY!);
+        client = new StandardAIClient(API_KEY!);
     } else {
         throw new Error("Missing AI Credentials. Set GEMINI_API_KEY or GCP_PROJECT_ID.");
     }
+
+    // Cache the client for future use
+    cachedClient = client;
+    return client;
 }
 
