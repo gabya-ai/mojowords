@@ -43,11 +43,12 @@ const getCredentials = () => {
     };
 };
 
-const { PROJECT_ID, LOCATION, API_KEY, CLIENT_EMAIL, PRIVATE_KEY } = getCredentials();
+// Credentials loaded inside getAIClient() to avoid build-time/init issues
+// const { PROJECT_ID, LOCATION, API_KEY, CLIENT_EMAIL, PRIVATE_KEY } = getCredentials();
 
 // DEBUG: Check credentials load
-console.log('[AI Config] GCP_PROJECT_ID:', PROJECT_ID ? 'Set' : 'Missing');
-console.log('[AI Config] GCP_CLIENT_EMAIL:', CLIENT_EMAIL ? 'Set' : 'Missing');
+// console.log('[AI Config] GCP_PROJECT_ID:', PROJECT_ID ? 'Set' : 'Missing');
+// console.log('[AI Config] GCP_CLIENT_EMAIL:', CLIENT_EMAIL ? 'Set' : 'Missing');
 
 type GenerationConfig = {
     temperature?: number;
@@ -115,15 +116,18 @@ class VertexAIClientWrapper implements AIClient {
     private location: string;
     private auth: GoogleAuth;
 
-    constructor(projectId: string, location: string) {
+    constructor(projectId: string, location: string, clientEmail?: string, privateKey?: string) {
         this.projectId = projectId;
         this.location = location;
 
         // If specific credentials are provided (e.g. Vercel), use them.
         // Otherwise, fallback to Application Default Credentials (Local gcloud)
-        const credentials = (CLIENT_EMAIL && PRIVATE_KEY) ? {
-            client_email: CLIENT_EMAIL,
-            private_key: PRIVATE_KEY
+        // Ensure private key has correct line breaks
+        const formattedKey = privateKey ? privateKey.replace(/\\n/g, '\n') : undefined;
+
+        const credentials = (clientEmail && formattedKey) ? {
+            client_email: clientEmail,
+            private_key: formattedKey
         } : undefined;
 
         this.auth = new GoogleAuth({
@@ -234,17 +238,23 @@ class HybridAIClient implements AIClient {
 
 // Initializer
 export function getAIClient(): AIClient {
+    // Load credentials at runtime to ensure process.env is populated
+    const { PROJECT_ID, LOCATION, API_KEY, CLIENT_EMAIL, PRIVATE_KEY } = getCredentials();
+
+    console.log('[AI Config] Loading Client...');
+    console.log('[AI Config] GCP_PROJECT_ID:', PROJECT_ID ? 'Set' : 'Missing');
+
     const hasVertex = !!PROJECT_ID;
     const hasApiKey = !!API_KEY;
 
     if (hasVertex && hasApiKey) {
         console.log(`[AI] Using HBIRD Client: Vertex (Text + Image)`);
-        const v = new VertexAIClientWrapper(PROJECT_ID!, LOCATION);
+        const v = new VertexAIClientWrapper(PROJECT_ID!, LOCATION, CLIENT_EMAIL, PRIVATE_KEY);
         const s = new StandardAIClient(API_KEY!);
         return new HybridAIClient(v, s);
     } else if (hasVertex) {
         console.log(`[AI] Using Vertex AI Only`);
-        return new VertexAIClientWrapper(PROJECT_ID!, LOCATION);
+        return new VertexAIClientWrapper(PROJECT_ID!, LOCATION, CLIENT_EMAIL, PRIVATE_KEY);
     } else if (hasApiKey) {
         console.log(`[AI] Using Standard Google Generative AI (API Key) Only`);
         return new StandardAIClient(API_KEY!);
