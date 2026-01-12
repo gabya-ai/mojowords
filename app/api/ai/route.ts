@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         // Strict 800ms timeout check
         if (agent !== 'teacher') { // Skip for teacher mode since it's "Explain More"
             try {
-                const evalAgent = new WordEvaluationAgent(process.env.GEMINI_API_KEY || '');
+                const evalAgent = new WordEvaluationAgent();
                 // Note: We use a short timeout. If it expires, we FAIL SAFE (Option A).
                 const evalResult = await withTimeout(
                     evalAgent.evaluate(targetWord),

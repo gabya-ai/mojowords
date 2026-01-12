@@ -1,19 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getAIClient } from '@/app/lib/ai';
 
 export class WordEvaluationAgent {
-    private genAI: GoogleGenerativeAI;
-    private model: any;
-
-    constructor(apiKey: string) {
-        this.genAI = new GoogleGenerativeAI(apiKey);
-        // Use flash model for speed
-        this.model = this.genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp',
-            generationConfig: { responseMimeType: "application/json" }
-        });
-    }
 
     async evaluate(word: string): Promise<{ isValid: boolean; reason?: string }> {
+        const aiClient = getAIClient();
         const prompt = `
         You are a strict vocabulary filter.
         Is "${word}" a valid, real English word that is safe and appropriate for an 8-year-old child?
@@ -29,8 +19,9 @@ export class WordEvaluationAgent {
         `;
 
         try {
-            const result = await this.model.generateContent(prompt);
-            const response = JSON.parse(result.response.text());
+            const responseText = await aiClient.generateContent('gemini-2.0-flash-exp', prompt, { responseMimeType: "application/json" });
+            const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const response = JSON.parse(cleanText);
             return {
                 isValid: response.isValid,
                 reason: response.reason
