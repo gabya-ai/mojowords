@@ -29,34 +29,65 @@ export default function WordCard({ word, onDelete, onToggleStar }: WordCardProps
     };
 
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const { updateWordImage } = useWords();
+    const { updateWordImage, userProfile } = useWords();
 
     const handleGenerateImage = async () => {
         setIsGeneratingImage(true);
         setImageError(false);
-        try {
-            // Use word + definition as the prompt/context for the image
-            const imagePrompt = `A colorful, child-friendly illustration for the word "${word.word}". Definition: ${word.definition}. Avoid text.`;
 
-            const res = await fetch('/api/ai', {
+        try {
+            // 1. Enqueue Job
+            const res = await fetch('/api/ai/picture', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mode: 'image_only',
-                    prompt: imagePrompt
+                    wordId: word.id,
+                    childId: userProfile.id,
+                    prompt: word.word
                 })
             });
 
-            if (!res.ok) throw new Error("Failed to generate image");
+            if (!res.ok) throw new Error("Failed to start painting");
 
-            const data = await res.json();
-            if (data.imageUrl) {
-                await updateWordImage(word.id, data.imageUrl);
-            }
+            const { jobId } = await res.json();
+
+            // 2. Poll Status
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`/api/jobs/${jobId}`);
+                    if (!statusRes.ok) return; // Skip this tick
+
+                    const jobData = await statusRes.json();
+
+                    if (jobData.status === 'COMPLETED' && jobData.result?.imageUrl) {
+                        clearInterval(pollInterval);
+                        await updateWordImage(word.id, jobData.result.imageUrl);
+                        setIsGeneratingImage(false);
+                    } else if (jobData.status === 'FAILED') {
+                        clearInterval(pollInterval);
+                        console.error("Painting failed:", jobData.error);
+                        setImageError(true);
+                        setIsGeneratingImage(false);
+                    }
+                    // If PENDING or PROCESSING, continue polling
+                } catch (e) {
+                    console.error("Polling check failed", e);
+                    // Continue polling on transient network errors
+                }
+            }, 2000);
+
+            // Safety timeout (Stop polling after 30s)
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                if (isGeneratingImage) {
+                    setIsGeneratingImage(false);
+                    // Don't necessarily show error if it's just slow, but maybe good UX
+                }
+            }, 30000);
+
         } catch (error) {
             console.error("Image generation failed", error);
             setImageError(true);
-        } finally {
             setIsGeneratingImage(false);
         }
     };

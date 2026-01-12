@@ -20,6 +20,31 @@ model User {
   // hasCompletedOnboarding removed - inferred from whether children exist
 }
 
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  type           String    // "IMAGE_GENERATION"
+  status         JobStatus @default(PENDING)
+  result         Json?     // { imageUrl: "..." }
+  error          String?
+  
+  // Idempotency & Ownership
+  idempotencyKey String    @unique // sha256(wordId + childId + prompt)
+  childId        String
+  wordId         String?   
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([childId, status])
+}
+
 model ChildProfile {
   id        String     @id @default(cuid())
   userId    String

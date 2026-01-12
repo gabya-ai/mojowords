@@ -1,67 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAIClient } from '@/app/lib/ai';
+import { validateWord } from '@/services/validation/sharedValidator';
+import { WordEvaluationAgent } from '@/services/agents/WordEvaluationAgent';
+
+// Helper to wrap promise with timeout
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage = 'Operation timed out'): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+    ]);
+};
 
 export async function POST(req: NextRequest) {
     try {
-        const { prompt, context, agent = 'generator', mode = 'full' } = await req.json();
+        const body = await req.json();
+        // Support 'word' (new) or 'prompt' (legacy/curl)
+        const { word, prompt, context, agent = 'generator', mode = 'full' } = body;
+        const targetWord = word || prompt;
 
-        if (!prompt) {
-            return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+        // 1. SHARED VALIDATOR (Fail Fast - Zero Cost)
+        // Check for empty, length, regex, garbage
+        const validation = validateWord(targetWord);
+        console.log(`[Route] Validate: "${targetWord}" ->`, validation);
+        if (!validation.isValid) {
+            return NextResponse.json({ error: validation.error }, { status: 400 });
         }
 
         const aiClient = getAIClient();
 
-        // --- MODE: IMAGE ONLY ---
+
+        // --- MODE: IMAGE ONLY (Lazy Load) ---
+        // --- MODE: IMAGE ONLY (Lazy Load) ---
         if (mode === 'image_only') {
             try {
-                console.log("[Route] Generating Image Only for prompt: ", prompt);
-                const imageUrl = await aiClient.generateImage(prompt);
+                console.log("[Route] Generating Image Only for prompt: ", targetWord);
+                // Use existing image generation logic (waiting for P0 Refactor to Async Job later if needed, 
+                // but for now keeping it simple as per Minimal-Safe plan)
+                // Enforcing 10s timeout for image gen
+                const imageUrl = await withTimeout(
+                    aiClient.generateImage(targetWord),
+                    10000,
+                    'Image generation timed out'
+                );
                 return NextResponse.json({ imageUrl });
             } catch (imgError: any) {
                 console.error("[Route] Failed to generate AI image", imgError);
-                throw imgError; // Propagate error so client shows error UI
+                return NextResponse.json({ error: 'Could not paint picture' }, { status: 500 });
             }
         }
 
-        // --- MODE: TEXT GENERATION (Default / Text Only) ---
+        // --- MODE: TEXT GENERATION (Default) ---
+
+        // 2. EVALUATION GATE (Server-Side Limit)
+        // Strict 800ms timeout check
+        if (agent !== 'teacher') { // Skip for teacher mode since it's "Explain More"
+            try {
+                const evalAgent = new WordEvaluationAgent(process.env.GEMINI_API_KEY || '');
+                // Note: We use a short timeout. If it expires, we FAIL SAFE (Option A).
+                const evalResult = await withTimeout(
+                    evalAgent.evaluate(targetWord),
+                    2500,
+                    'Validation timeout'
+                );
+
+                if (!evalResult.isValid) {
+                    return NextResponse.json({ error: evalResult.reason || "We couldn't check this word." }, { status: 400 });
+                }
+            } catch (e: any) {
+                console.error(`[Route] Eval Gate failed for "${targetWord}":`, e.message);
+                // Option A: Reject request if we can't verify
+                // "We couldn't check this word — try again."
+                return NextResponse.json({ error: "We couldn't check this word — try again." }, { status: 422 });
+            }
+        }
+
         let systemPrompt = '';
 
         if (agent === 'teacher') {
-            // ... (Teacher Prompt - Unchanged) ...
             systemPrompt = `
              You are a friendly vocabulary tutor helping an 8-year-old REMEMBER and UNDERSTAND a word.
-             
-             Word to explain: "${prompt}"
+             Word to explain: "${targetWord}"
              ${context ? `Context: ${context}` : ''}
- 
-             Task:
-             Provide a distinct explanation/clarification that is NOT just the definition. 
-             Use analogies, mnemonics, or "Did you know?" style facts to make it stick.
-             
-             Required JSON Structure:
-             {
-                 "explanation": "string", 
-                 "type": "analogy" | "mnemonic" | "fact",
-                 "fun_fact": "string" 
-             }
+             Task: Provide a distinct explanation (analogy, mnemonic, fact).
+             Required JSON Structure: { "explanation": "string", "type": "analogy" | "mnemonic" | "fact", "fun_fact": "string" }
              Return ONLY valid JSON.
              `;
         } else {
-            // ... (Generator Prompt - Unchanged) ...
             systemPrompt = `
              You are a helpful vocabulary tutor for an 8-year-old child.
-             
-             Word to define: "${prompt}"
-             ${context ? `Context: ${context}` : ''}
- 
-             Task:
-             1. Define the word simply.
-             2. Write a fun example sentence.
-             3. Create a "visual_description" - a detailed prompt for an artist to paint a picture that explains this word to a child. 
-                - The image should be colorful, friendly, and clear.
-                - Avoid text in the image.
-                - Focus on the key concept.
-             
+             Word to define: "${targetWord}"
+             Task: Define, Example, Visual Description.
              Required JSON Structure:
              {
                  "definition": "string",
@@ -75,64 +103,38 @@ export async function POST(req: NextRequest) {
              `;
         }
 
-        // Use unified client to generate content
-        // Using gemini-2.0-flash-exp for text
-        const responseText = await aiClient.generateContent("gemini-2.0-flash-exp", systemPrompt, {
-            responseMimeType: "application/json"
-        });
+        // 3. GENERATION with CIRCUIT BREAKER / TIMEOUT
+        // 8s Timeout for Text
+        const responseText = await withTimeout(
+            aiClient.generateContent("gemini-2.0-flash-exp", systemPrompt, { responseMimeType: "application/json" }),
+            8000,
+            'Text generation timed out'
+        );
 
-        // Clean potentially markdown-wrapped JSON
         const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const contentJson = JSON.parse(cleanText);
 
-        // --- MODE: TEXT ONLY ---
-        if (mode === 'text_only') {
-            // Return text immediately, skip image generation
-            return NextResponse.json({
-                text: JSON.stringify({
-                    ...contentJson,
-                    imageUrl: null // Explicitly null to indicate no image yet
-                })
-            });
-        }
+        // 4. NON-BLOCKING PICTURE (Lazy Load)
+        // Always return null imageUrl initially to be fast.
+        // Frontend will see null and request image_only.
 
-        // --- MODE: FULL (Legacy/Default) ---
-        // Only generate image if we are in generator mode
-        if (agent === 'generator') {
-            // --- ARTIST ---
-            let imageUrl = '';
-            try {
-                console.log("[Route] Generating Image for visual description: ", contentJson.visual_description);
-                // Use the Hybrid client's image generation (Standard/API Key)
-                imageUrl = await aiClient.generateImage(contentJson.visual_description);
-            } catch (imgError) {
-                console.error("[Route] Failed to generate AI image", imgError);
-                // Allow empty image url (or throw if strict) - deciding to just log and leave imageUrl empty to avoid crashing the whole text generation
-                // imageUrl remains '' 
-            }
-
-            return NextResponse.json({
-                text: JSON.stringify({
-                    ...contentJson,
-                    imageUrl: imageUrl
-                })
-            });
-        } else {
-            return NextResponse.json({
-                text: JSON.stringify(contentJson)
-            });
-        }
+        return NextResponse.json({
+            text: JSON.stringify({
+                ...contentJson,
+                imageUrl: null // Force Lazy Load
+            })
+        });
 
     } catch (error: any) {
         console.error('Error generating AI content:', error);
-        return NextResponse.json(
-            {
-                error: 'Failed to generate content',
-                details: error.message || 'Unknown error',
-                stack: error.stack
-            },
-            { status: 500 }
-        );
+        const msg = error.message || '';
+        if (msg.includes('429') || msg.includes('Quota')) {
+            return NextResponse.json({ error: 'Busy Bee! 🐝 Try again in a minute.' }, { status: 429 });
+        }
+        return NextResponse.json({
+            error: 'Failed to generate content',
+            details: msg
+        }, { status: 500 });
     }
 }
 

@@ -1,18 +1,53 @@
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VertexAI, GenerativeModel } from '@google-cloud/vertexai';
+import { GoogleAuth } from 'google-auth-library';
+
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Unified AI Client
  * Automatically switches between Standard API (API Key) and Vertex AI (Application Default Credentials)
  */
 
-const PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-const LOCATION = process.env.GCP_LOCATION || 'us-central1';
-const API_KEY = process.env.GEMINI_API_KEY;
+// Helper to load credentials
+const getCredentials = () => {
+    // 1. Try Environment Variables
+    let projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+    let clientEmail = process.env.GCP_CLIENT_EMAIL;
+    let privateKey = process.env.GCP_PRIVATE_KEY;
 
-// Credentials for Serverless/Vercel (Avoiding JSON file upload issues)
-const CLIENT_EMAIL = process.env.GCP_CLIENT_EMAIL;
-const PRIVATE_KEY = process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'); // Handle newlines in env vars
+    // 2. Try Fallback JSON (for local dev issues)
+    if (!projectId) {
+        try {
+            const jsonPath = path.join(process.cwd(), 'vertex-credentials.json');
+            if (fs.existsSync(jsonPath)) {
+                const creds = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+                console.log('[AI Config] Loaded credentials from vertex-credentials.json');
+                projectId = creds.GCP_PROJECT_ID;
+                clientEmail = creds.GCP_CLIENT_EMAIL;
+                privateKey = creds.GCP_PRIVATE_KEY;
+            }
+        } catch (e) {
+            console.warn('[AI Config] Failed to load vertex-credentials.json', e);
+        }
+    }
+
+    return {
+        PROJECT_ID: projectId,
+        LOCATION: process.env.GCP_LOCATION || 'us-central1',
+        API_KEY: process.env.GEMINI_API_KEY,
+        CLIENT_EMAIL: clientEmail,
+        PRIVATE_KEY: privateKey?.replace(/\\n/g, '\n')
+    };
+};
+
+const { PROJECT_ID, LOCATION, API_KEY, CLIENT_EMAIL, PRIVATE_KEY } = getCredentials();
+
+// DEBUG: Check credentials load
+console.log('[AI Config] GCP_PROJECT_ID:', PROJECT_ID ? 'Set' : 'Missing');
+console.log('[AI Config] GCP_CLIENT_EMAIL:', CLIENT_EMAIL ? 'Set' : 'Missing');
 
 type GenerationConfig = {
     temperature?: number;
@@ -45,12 +80,13 @@ class StandardAIClient implements AIClient {
     }
 
     async generateImage(prompt: string): Promise<string> {
+        console.log('[AI] StandardAIClient.generateImage called');
         // Try to use a valid model for API key based image generation
         // Note: GoogleGenerativeAI SDK interaction for Imagen might vary, 
         // effectively treating it as 'generateContent' but handling the image response.
-        // We will try 'gemini-2.5-flash-image' which is available on the API Key
+        // We will try 'gemini-2.0-flash-exp' which is available on the API Key
         try {
-            const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+            const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
             const result = await model.generateContent(prompt);
             const response = await result.response;
 
@@ -64,7 +100,8 @@ class StandardAIClient implements AIClient {
                     }
                 }
             }
-            throw new Error("No image data found in response");
+            console.warn("StandardAIClient: No inline image data found. Response parts:", parts);
+            throw new Error("No image data found in response. Note: Image generation might require Vertex AI.");
         } catch (e) {
             console.error("StandardAIClient Image Gen Error:", e);
             throw e;
@@ -74,21 +111,30 @@ class StandardAIClient implements AIClient {
 
 class VertexAIClientWrapper implements AIClient {
     private vertexAI: VertexAI;
+    private projectId: string;
+    private location: string;
+    private auth: GoogleAuth;
 
     constructor(projectId: string, location: string) {
+        this.projectId = projectId;
+        this.location = location;
+
         // If specific credentials are provided (e.g. Vercel), use them.
         // Otherwise, fallback to Application Default Credentials (Local gcloud)
-        const authOptions = (CLIENT_EMAIL && PRIVATE_KEY) ? {
-            credentials: {
-                client_email: CLIENT_EMAIL,
-                private_key: PRIVATE_KEY
-            }
+        const credentials = (CLIENT_EMAIL && PRIVATE_KEY) ? {
+            client_email: CLIENT_EMAIL,
+            private_key: PRIVATE_KEY
         } : undefined;
+
+        this.auth = new GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/cloud-platform']
+        });
 
         this.vertexAI = new VertexAI({
             project: projectId,
             location: location,
-            googleAuthOptions: authOptions
+            googleAuthOptions: credentials ? { credentials } : undefined
         });
     }
 
@@ -115,7 +161,52 @@ class VertexAIClientWrapper implements AIClient {
     }
 
     async generateImage(prompt: string): Promise<string> {
-        throw new Error("Vertex AI Image Generation is quota-limited. Use Hybrid client.");
+        // Using REST API for Imagen 3 Fast on Vertex AI
+        // This avoids SDK complexity for pure image generation endpoint
+        try {
+            const client = await this.auth.getClient();
+            const accessToken = await client.getAccessToken();
+
+            const modelId = "imagen-3.0-fast-generate-001";
+            const endpoint = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/publishers/google/models/${modelId}:predict`;
+
+            const requestBody = {
+                instances: [
+                    { prompt: prompt }
+                ],
+                parameters: {
+                    sampleCount: 1,
+                    aspectRatio: "1:1"
+                }
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Vertex AI Image Gen Error ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+
+            // @ts-ignore
+            if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
+                // @ts-ignore
+                return `data:${data.predictions[0].mimeType || 'image/png'};base64,${data.predictions[0].bytesBase64Encoded}`;
+            }
+
+            throw new Error("No image data found in Vertex AI response");
+        } catch (error) {
+            console.error("VertexAIClientWrapper Image Gen Error:", error);
+            throw error;
+        }
     }
 }
 
@@ -134,8 +225,10 @@ class HybridAIClient implements AIClient {
     }
 
     async generateImage(prompt: string): Promise<string> {
-        // use Standard (API Key) for Image (70/day Free Quota)
-        return this.stdClient.generateImage(prompt);
+        console.log('[AI] HybridAIClient.generateImage called -> Delegating to Vertex');
+        // Switch to Vertex AI for Image Generation (Imagen 3 Fast)
+        // This solves the 429 Limit: 0 issue with the Key-based API
+        return this.vertexClient.generateImage(prompt);
     }
 }
 
@@ -145,7 +238,7 @@ export function getAIClient(): AIClient {
     const hasApiKey = !!API_KEY;
 
     if (hasVertex && hasApiKey) {
-        console.log(`[AI] Using HBIRD Client: Vertex (Text) + Standard (Image)`);
+        console.log(`[AI] Using HBIRD Client: Vertex (Text + Image)`);
         const v = new VertexAIClientWrapper(PROJECT_ID!, LOCATION);
         const s = new StandardAIClient(API_KEY!);
         return new HybridAIClient(v, s);
@@ -159,3 +252,4 @@ export function getAIClient(): AIClient {
         throw new Error("Missing AI Credentials. Set GEMINI_API_KEY or GCP_PROJECT_ID.");
     }
 }
+

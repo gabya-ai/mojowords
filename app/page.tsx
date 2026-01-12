@@ -38,12 +38,8 @@ export default function Home() {
         },
         body: JSON.stringify({
           mode: 'text_only',
-          prompt: `Define the word "${wordText}" for a child. Return ONLY a valid JSON object (no markdown, no backticks) with these exact keys:
-          - definition: a simple, child-friendly definition (string)
-          - sentence: an example sentence including the word (string)
-          - difficulty: one of "EASY", "MEDIUM", "CHALLENGE" (string)
-          - gradeLevel: a number between 1 and 6 (number)
-          - funFact: a short fun fact about the word (optional string)`
+          word: wordText,
+          // prompt: ... REMOVED, constructed on server
         }),
       });
 
@@ -56,7 +52,7 @@ export default function Home() {
           throw new Error(`Busy Bee! 🐝 The garden is crowded. Please wait a few seconds and try again.`);
         }
         // Surface the real backend error details
-        throw new Error(errorData.details || errorData.message || `AI Request Failed (${response.status})`);
+        throw new Error(errorData.error || errorData.details || errorData.message || `AI Request Failed (${response.status})`);
       }
 
       const data = await response.json();
@@ -176,6 +172,10 @@ export default function Home() {
 
 
 
+      {/* Footer Request: Stability Mode */}
+      <div className="fixed bottom-0 left-0 w-full bg-red-600 text-white text-center py-1 text-xs font-bold uppercase tracking-widest z-50 opacity-90">
+        Stability Mode Active
+      </div>
     </div>
   );
 }
